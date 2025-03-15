@@ -34,8 +34,6 @@
     Negative Prompts: "blur, deformed, mutated"
 
 
-Absolutely! Here are more extensive inputs for each section of the Stable Diffusion cheat sheet:
-
 **Stable Diffusion Prompt Cheat Sheet (Extended Inputs)**
 
 **Character:**
@@ -88,5 +86,3 @@ Absolutely! Here are more extensive inputs for each section of the Stable Diffus
 1.  **Quality:** "High resolution, 4K, 8K, photorealistic, cinematic."
 2.  **Effects:** "Bokeh, grain, vignette, film grain, chromatic aberration."
 3.  **Negative Prompts:** "Blurry, deformed, mutated, disfigured, extra limbs, missing limbs, bad anatomy, low quality, draft, watermark."
-
-I hope this helps!

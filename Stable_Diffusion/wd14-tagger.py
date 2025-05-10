@@ -91,7 +91,7 @@ def get_tags(
     # General labels, pick any where prediction confidence > threshold
     gen_labels = [probs[i] for i in labels.general]
     gen_labels = [x for x in gen_labels if x[1] >= gen_threshold]
-    gen_labels = sorted(gen_labels, key=lambda item: item[1], reverse=True)[:50]
+    gen_labels = sorted(gen_labels, key=lambda item: item[1], reverse=True)[:100]
     gen_labels = dict(gen_labels)
 
 
@@ -115,7 +115,7 @@ def get_tags(
 class ScriptOptions:
     image_file: Path = field(positional=True)
     model: str = field(default="vit")
-    gen_threshold: float = field(default=0.18)
+    gen_threshold: float = field(default=0.12)
     char_threshold: float = field(default=0.75)
 
 

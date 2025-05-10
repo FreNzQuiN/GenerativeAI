@@ -117,6 +117,7 @@ class ScriptOptions:
     model: str = field(default="vit")
     gen_threshold: float = field(default=0.12)
     char_threshold: float = field(default=0.75)
+    output_file: Optional[Path] = field(default=None)
 
 
 def main(opts: ScriptOptions):

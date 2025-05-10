@@ -171,7 +171,26 @@ def main(opts: ScriptOptions):
         gen_threshold=opts.gen_threshold,
         char_threshold=opts.char_threshold,
     )
-
+    if opts.output_file:
+        try:
+            mode = "a" if Path(opts.output_file).is_file() else "w"  # Gunakan 'a' jika file sudah ada, 'w' jika belum
+            with open(opts.output_file, mode) as f:
+                f.write(f"Image: {opts.image_file}\n")  # Tambahkan nama file gambar
+                f.write(f"Caption: {caption}\n")
+                f.write(f"Tags: {taglist}\n")
+                f.write("\nRatings:\n")
+                for k, v in ratings.items():
+                    f.write(f"  {k}: {v:.3f}\n")
+                f.write("\nCharacter tags:\n")
+                for k, v in character.items():
+                    f.write(f"  {k}: {v:.3f}\n")
+                f.write("\nGeneral tags:\n")
+                for k, v in general.items():
+                    f.write(f"  {k}: {v:.3f}\n")
+                f.write("-" * 40 + "\n\n")  # Garis pemisah antar gambar
+            print(f"Output untuk {opts.image_file} ditambahkan ke: {opts.output_file}")
+        except Exception as e:
+            print(f"Terjadi kesalahan saat menulis ke file: {e}")
     print("--------")
     print(f"Caption: {caption}")
     print("--------")

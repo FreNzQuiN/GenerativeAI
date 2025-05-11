@@ -35,7 +35,6 @@ def pil_ensure_rgb(image: Image.Image) -> Image.Image:
         image = canvas.convert("RGB")
     return image
 
-
 def pil_pad_square(image: Image.Image) -> Image.Image:
     w, h = image.size
     # get the largest dimension so we can pad to a square
@@ -45,14 +44,12 @@ def pil_pad_square(image: Image.Image) -> Image.Image:
     canvas.paste(image, ((px - w) // 2, (px - h) // 2))
     return canvas
 
-
 @dataclass
 class LabelData:
     names: list[str]
     rating: list[np.int64]
     general: list[np.int64]
     character: list[np.int64]
-
 
 def load_labels_hf(
     repo_id: str,
@@ -76,7 +73,6 @@ def load_labels_hf(
     )
 
     return tag_data
-
 
 def get_tags(
     probs: Tensor,
@@ -138,9 +134,11 @@ def main(opts: ScriptOptions):
         print("No image files provided.")
         return
 
-    output_filename = f"hasil_tag_{os.path.splitext(Path(sys.argv[0]).name)[0]}.txt"
+    output_filename_base = f"hasil_tag_{os.path.splitext(Path(sys.argv[0]).name)[0]}"
     if opts.output_file:
-        output_filename = opts.output_file
+        output_filename = str(opts.output_file)
+    else:
+        output_filename = f"{output_filename_base}.txt" 
 
     all_results = {}
     for image_path in opts.image_files:

@@ -1,6 +1,8 @@
+import sys
+import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 import pandas as pd
@@ -94,7 +96,6 @@ def get_tags(
     gen_labels = sorted(gen_labels, key=lambda item: item[1], reverse=True)[:100]
     gen_labels = dict(gen_labels)
 
-
     # Character labels, pick any where prediction confidence > threshold
     char_labels = [probs[i] for i in labels.character]
     char_labels = dict([x for x in char_labels if x[1] > char_threshold])
@@ -110,26 +111,22 @@ def get_tags(
 
     return caption, taglist, rating_labels, char_labels, gen_labels
 
-
 @dataclass
 class ScriptOptions:
-    image_file: Path = field(positional=True)
-    model: str = field(default="vit")
-    gen_threshold: float = field(default=0.12)
-    char_threshold: float = field(default=0.75)
-    output_file: Optional[Path] = field(default=None)
-
+    image_files: Optional[List[Path]] = field(default=None, help="Path to one or more image files")
+    model: str = field(default="vit", help="Name of the model to use for tagging")
+    gen_threshold: float = field(default=0.09, help="Threshold for general tags")
+    char_threshold: float = field(default=0.0009, help="Threshold for character tags")
+    output_file: Optional[Path] = field(default=None, help="Path to the output text file")
 
 def main(opts: ScriptOptions):
     repo_id = MODEL_REPO_MAP.get(opts.model)
-    image_path = Path(opts.image_file).resolve()
-    if not image_path.is_file():
-        raise FileNotFoundError(f"Image file not found: {image_path}")
-
     print(f"Loading model '{opts.model}' from '{repo_id}'...")
     model: nn.Module = timm.create_model("hf-hub:" + repo_id).eval()
     state_dict = timm.models.load_state_dict_from_hf(repo_id)
     model.load_state_dict(state_dict)
+    if torch_device.type != "cpu":
+        model = model.to(torch_device)
 
     print("Loading tag list...")
     labels: LabelData = load_labels_hf(repo_id=repo_id)
@@ -137,61 +134,68 @@ def main(opts: ScriptOptions):
     print("Creating data transform...")
     transform = create_transform(**resolve_data_config(model.pretrained_cfg, model=model))
 
-    print("Loading image and preprocessing...")
-    # get image
-    img_input: Image.Image = Image.open(image_path)
-    # ensure image is RGB
-    img_input = pil_ensure_rgb(img_input)
-    # pad to square with white background
-    img_input = pil_pad_square(img_input)
-    # run the model's input transform to convert to tensor and rescale
-    inputs: Tensor = transform(img_input).unsqueeze(0)
-    # NCHW image RGB to BGR
-    inputs = inputs[:, [2, 1, 0]]
+    if not opts.image_files:
+        print("No image files provided.")
+        return
 
-    print("Running inference...")
-    with torch.inference_mode():
-        # move model to GPU, if available
-        if torch_device.type != "cpu":
-            model = model.to(torch_device)
-            inputs = inputs.to(torch_device)
-        # run the model
-        outputs = model.forward(inputs)
-        # apply the final activation function (timm doesn't support doing this internally)
-        outputs = F.sigmoid(outputs)
-        # move inputs, outputs, and model back to to cpu if we were on GPU
-        if torch_device.type != "cpu":
-            inputs = inputs.to("cpu")
-            outputs = outputs.to("cpu")
-            model = model.to("cpu")
-
-    print("Processing results...")
-    caption, taglist, ratings, character, general = get_tags(
-        probs=outputs.squeeze(0),
-        labels=labels,
-        gen_threshold=opts.gen_threshold,
-        char_threshold=opts.char_threshold,
-    )
+    output_filename = f"hasil_tag_{os.path.splitext(Path(sys.argv[0]).name)[0]}.txt"
     if opts.output_file:
-        try:
-            mode = "a" if Path(opts.output_file).is_file() else "w"  # Gunakan 'a' jika file sudah ada, 'w' jika belum
-            with open(opts.output_file, mode) as f:
-                f.write(f"Image: {opts.image_file}\n")  # Tambahkan nama file gambar
-                f.write(f"Caption: {caption}\n")
-                f.write(f"Tags: {taglist}\n")
+        output_filename = opts.output_file
+
+    all_results = {}
+    for image_path in opts.image_files:
+        if not image_path.is_file():
+            print(f"Warning: Image file not found: {image_path}")
+            continue
+
+        print(f"\nProcessing image: {image_path}")
+        img_input: Image.Image = Image.open(image_path)
+        img_input = pil_ensure_rgb(img_input)
+        img_input = pil_pad_square(img_input)
+        inputs: Tensor = transform(img_input).unsqueeze(0)
+        inputs = inputs[:, [2, 1, 0]]
+
+        with torch.inference_mode():
+            if torch_device.type != "cpu":
+                inputs = inputs.to(torch_device)
+            outputs = model.forward(inputs)
+            outputs = F.sigmoid(outputs)
+            outputs = outputs.to("cpu")
+
+        caption, taglist, ratings, character, general = get_tags(
+            probs=outputs.squeeze(0),
+            labels=labels,
+            gen_threshold=opts.gen_threshold,
+            char_threshold=opts.char_threshold,
+        )
+        all_results[image_path.name] = {
+            "caption": caption,
+            "tags": taglist,
+            "ratings": ratings,
+            "character": character,
+            "general": general,
+        }
+
+    try:
+        mode = "a" if Path(output_filename).is_file() else "w"
+        with open(output_filename, mode) as f:
+            for filename, res in all_results.items():
+                f.write(f"Image: {filename}\n")
+                f.write(f"Caption: {res['caption']}\n")
+                f.write(f"Tags: {res['tags']}\n")
                 f.write("\nRatings:\n")
-                for k, v in ratings.items():
+                for k, v in res['ratings'].items():
                     f.write(f"  {k}: {v:.3f}\n")
                 f.write("\nCharacter tags:\n")
-                for k, v in character.items():
+                for k, v in res['character'].items():
                     f.write(f"  {k}: {v:.3f}\n")
                 f.write("\nGeneral tags:\n")
-                for k, v in general.items():
+                for k, v in res['general'].items():
                     f.write(f"  {k}: {v:.3f}\n")
-                f.write("-" * 40 + "\n\n")  # Garis pemisah antar gambar
-            print(f"Output untuk {opts.image_file} ditambahkan ke: {opts.output_file}")
-        except Exception as e:
-            print(f"Terjadi kesalahan saat menulis ke file: {e}")
+                f.write("-" * 40 + "\n\n")
+        print(f"\nResults for all images written to: {output_filename}")
+    except Exception as e:
+        print(f"Error writing to output file: {e}")
     print("--------")
     print(f"Caption: {caption}")
     print("--------")
@@ -214,9 +218,8 @@ def main(opts: ScriptOptions):
 
     print("Done!")
 
-
 if __name__ == "__main__":
-    opts, _ = parse_known_args(ScriptOptions)
+    opts = parse_known_args(ScriptOptions)[0]
     if opts.model not in MODEL_REPO_MAP:
         print(f"Available models: {list(MODEL_REPO_MAP.keys())}")
         raise ValueError(f"Unknown model name '{opts.model}'")

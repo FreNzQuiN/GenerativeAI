@@ -89,7 +89,7 @@ def get_tags(
     # General labels, pick any where prediction confidence > threshold
     gen_labels = [probs[i] for i in labels.general]
     gen_labels = [x for x in gen_labels if x[1] >= gen_threshold]
-    gen_labels = sorted(gen_labels, key=lambda item: item[1], reverse=True)[:100]
+    gen_labels = sorted(gen_labels, key=lambda item: item[1], reverse=True)[:200]
     gen_labels = dict(gen_labels)
 
     # Character labels, pick any where prediction confidence > threshold
@@ -111,7 +111,7 @@ def get_tags(
 class ScriptOptions:
     image_files: Optional[List[Path]] = field(default=None, help="Path to one or more image files")
     model: str = field(default="vit", help="Name of the model to use for tagging")
-    gen_threshold: float = field(default=0.09, help="Threshold for general tags")
+    gen_threshold: float = field(default=0.04, help="Threshold for general tags")
     char_threshold: float = field(default=0.0009, help="Threshold for character tags")
     output_file: Optional[Path] = field(default=None, help="Path to the output text file")
 

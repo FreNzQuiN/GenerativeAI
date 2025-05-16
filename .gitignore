@@ -1,0 +1,7 @@
+.env
+simplePrivateAssistanceTTS/assets/models/
+simplePrivateAssistanceTTS/data/
+simplePrivateAssistanceTTS/core/__pycache__/
+simplePrivateAssistanceTTS/plugins/__pycache__/
+simplePrivateAssistanceTTS/logs/
+

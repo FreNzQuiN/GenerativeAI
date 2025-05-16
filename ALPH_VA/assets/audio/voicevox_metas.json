@@ -1,0 +1,1039 @@
+[
+    {
+        "name": "Shikoku Metan",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 2
+            },
+            {
+                "name": "Sweet",
+                "id": 0
+            },
+            {
+                "name": "Pricky",
+                "id": 6
+            },
+            {
+                "name": "Sexy",
+                "id": 4
+            },
+            {
+                "name": "Whisper",
+                "id": 36
+            },
+            {
+                "name": "Whispering",
+                "id": 37
+            },
+            {
+                "name": "Normal",
+                "id": 3002,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Sweet",
+                "id": 3000,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Tsuntsun",
+                "id": 3006,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Sexy",
+                "id": 3004,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Whispering",
+                "id": 3037,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "7ffcb7ce-00ec-4bdc-82cd-45a8889e43ff",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Zundamon",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 3
+            },
+            {
+                "name": "Sweet",
+                "id": 1
+            },
+            {
+                "name": "pointed",
+                "id": 7
+            },
+            {
+                "name": "sexy",
+                "id": 5
+            },
+            {
+                "name": "whisper",
+                "id": 22
+            },
+            {
+                "name": "whisper",
+                "id": 38
+            },
+            {
+                "name": "weak",
+                "id": 75
+            },
+            {
+                "name": "tears",
+                "id": 76
+            },
+            {
+                "name": "normal",
+                "id": 3003,
+                "type": "frame_decode"
+            },
+            {
+                "name": "sweet",
+                "id": 3001,
+                "type": "frame_decode"
+            },
+            {
+                "name": "pointed",
+                "id": 3007,
+                "type": "frame_decode"
+            },
+            {
+                "name": "sexy",
+                "id": 3005,
+                "type": "frame_decode"
+            },
+            {
+                "name": "whisper",
+                "id": 3038,
+                "type": "frame_decode"
+            },
+            {
+                "name": "slim",
+                "id": 3075,
+                "type": "frame_decode"
+            },
+            {
+                "name": "tears",
+                "id": 3076,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "388f246b-8c41-4ac1-8e2d-5d79f3ff56d9",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Kasukabe Tsumugi",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 8
+            },
+            {
+                "name": "Normal",
+                "id": 3008,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "35b2c544-660e-401e-b503-0e14c635303a",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Amaharu Hau",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 10
+            },
+            {
+                "name": "Normal",
+                "id": 3010,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "3474ee95-c274-47f9-aa1a-8322163d96f1",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Hanone Ritsu",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 9
+            },
+            {
+                "name": "Queen",
+                "id": 65
+            },
+            {
+                "name": "Normal",
+                "id": 3009,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Queen",
+                "id": 3065,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Normal",
+                "id": 6000,
+                "type": "sing"
+            }
+        ],
+        "speaker_uuid": "b1a81618-b27b-40d2-b0ea-27a9ad408c4b",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Kurono Takehiro",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 11
+            },
+            {
+                "name": "Joy",
+                "id": 39
+            },
+            {
+                "name": "Tsungire",
+                "id": 40
+            },
+            {
+                "name": "Sadness",
+                "id": 41
+            },
+            {
+                "name": "Normal",
+                "id": 3011,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Joy",
+                "id": 3039,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Tsungire",
+                "id": 3040,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Sadness",
+                "id": 3041,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "c30dc15a-0992-4f8d-8bb8-ad3b314e6a6f",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Shirakami Kotaro",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 12
+            },
+            {
+                "name": "Yay",
+                "id": 32
+            },
+            {
+                "name": "Nervous",
+                "id": 33
+            },
+            {
+                "name": "Anger",
+                "id": 34
+            },
+            {
+                "name": "Beeeen",
+                "id": 35
+            },
+            {
+                "name": "Normal",
+                "id": 3012,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Yay",
+                "id": 3032,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Nervous",
+                "id": 3033,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Angry",
+                "id": 3034,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Beeeen",
+                "id": 3035,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "e5020595-5c5d-4e87-b849-270a518d0dcf",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Aoyama Ryusei",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 13
+            },
+            {
+                "name": "Hot-blooded",
+                "id": 81
+            },
+            {
+                "name": "Sulky",
+                "id": 82
+            },
+            {
+                "name": "Joy",
+                "id": 83
+            },
+            {
+                "name": "Soft",
+                "id": 84
+            },
+            {
+                "name": "Sad",
+                "id": 85
+            },
+            {
+                "name": "Whisper",
+                "id": 86
+            },
+            {
+                "name": "Normal",
+                "id": 3013,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Hot-blooded",
+                "id": 3081,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Sulky",
+                "id": 3082,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Joy",
+                "id": 3083,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Soft",
+                "id": 3084,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Sadness",
+                "id": 3085,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "4f51116a-d9ee-4516-925d-21f183e2afad",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Meimei Himari",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 14
+            },
+            {
+                "name": "Normal",
+                "id": 3014,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "8eaad775-3119-417e-8cf4-2a10bfd592c8",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Kyushu Sora",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 16
+            },
+            {
+                "name": "Sweet",
+                "id": 15
+            },
+            {
+                "name": "Pricky",
+                "id": 18
+            },
+            {
+                "name": "Sexy",
+                "id": 17
+            },
+            {
+                "name": "Whisper",
+                "id": 19
+            },
+            {
+                "name": "Normal",
+                "id": 3016,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Sweet",
+                "id": 3015,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Pricky",
+                "id": 3018,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Sexy",
+                "id": 3017,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "481fb609-6446-4870-9f46-90c4dd623403",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Mochiko-san",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 20
+            },
+            {
+                "name": "Sexy/Anko",
+                "id": 66
+            },
+            {
+                "name": "crying",
+                "id": 77
+            },
+            {
+                "name": "anger",
+                "id": 78
+            },
+            {
+                "name": "joy",
+                "id": 79
+            },
+            {
+                "name": "relaxed",
+                "id": 80
+            },
+            {
+                "name": "normal",
+                "id": 3020,
+                "type": "frame_decode"
+            },
+            {
+                "name": "sexy/Anko",
+                "id": 3066,
+                "type": "frame_decode"
+            },
+            {
+                "name": "crying",
+                "id": 3077,
+                "type": "frame_decode"
+            },
+            {
+                "name": "anger",
+                "id": 3078,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Joy",
+                "id": 3079,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Relaxed",
+                "id": 3080,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "9f3ee141-26ad-437e-97bd-d22298d02ad2",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Kenzaki Meo",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 21
+            },
+            {
+                "name": "Normal",
+                "id": 3021,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "1a17ca16-7ee5-4ea5-b191-2f02ace24d21",
+        "version": "0.15.7"
+    },
+    {
+        "name": "WhiteCUL",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 23
+            },
+            {
+                "name": "Fun",
+                "id": 24
+            },
+            {
+                "name": "Sad",
+                "id": 25
+            },
+            {
+                "name": "Beeeen",
+                "id": 26
+            },
+            {
+                "name": "Normal",
+                "id": 3023,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Fun",
+                "id": 3024,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Sad",
+                "id": 3025,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Beeeen",
+                "id": 3026,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "67d5d8da-acd7-4207-bb10-b5542d3a663b",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Gooni",
+        "styles": [
+            {
+                "name": "Human ver.",
+                "id": 27
+            },
+            {
+                "name": "Plushie ver.",
+                "id": 28
+            },
+            {
+                "name": "Human (Angry) ver.",
+                "id": 87
+            },
+            {
+                "name": "Demon ver.",
+                "id": 88
+            },
+            {
+                "name": "Human ver.",
+                "id": 3027,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Plushie ver.",
+                "id": 3028,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "0f56c2f2-644c-49c9-8989-94e11f7129d0",
+        "version": "0.15.7"
+    },
+    {
+        "name": "No.7",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 29
+            },
+            {
+                "name": "Announcement",
+                "id": 30
+            },
+            {
+                "name": "Reading aloud",
+                "id": 31
+            },
+            {
+                "name": "Normal",
+                "id": 3029,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Annau",
+                "id": 3030,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Reading aloud",
+                "id": 3031,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "044830d2-f23b-44d6-ac0d-b5d733caa900",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Chibi-shikijii",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 42
+            },
+            {
+                "name": "Normal",
+                "id": 3042,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "468b8e94-9da4-4f7a-8715-a22a48844f9e",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Sakuraka Miko",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 43
+            },
+            {
+                "name": "Second form",
+                "id": 44
+            },
+            {
+                "name": "Lolita",
+                "id": 45
+            },
+            {
+                "name": "Normal",
+                "id": 3043,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Second form",
+                "id": 3044,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Lolita",
+                "id": 3045,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "0693554c-338e-4790-8982-b9c6d476dc69",
+        "version": "0.15.7"
+    },
+    {
+        "name": "SAYO",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 46
+            },
+            {
+                "name": "Normal",
+                "id": 3046,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "a8cc6d22-aad0-4ab8-bf1e-2f843924164a",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Nurse Robot Type T",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 47
+            },
+            {
+                "name": "Easy",
+                "id": 48
+            },
+            {
+                "name": "Fear",
+                "id": 49
+            },
+            {
+                "name": "Secret",
+                "id": 50
+            },
+            {
+                "name": "Normal",
+                "id": 3047,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Easy",
+                "id": 3048,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Fear",
+                "id": 3049,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "882a636f-3bac-431a-966d-c5e6bba9f949",
+        "version": "0.15.7"
+    },
+    {
+        "name": "†Holy Knight Benisakura†",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 51
+            },
+            {
+                "name": "Normal",
+                "id": 3051,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "471e39d2-fb11-4c8c-8d89-4b322d2498e0",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Suzumatsu Shuji",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 52
+            },
+            {
+                "name": "Normal",
+                "id": 3052,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "0acebdee-a4a5-4e12-a695-e19609728e30",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Kigashima Sorin",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 53
+            },
+            {
+                "name": "Normal",
+                "id": 3053,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "7d1e7ba7-f957-40e5-a3fc-da49f769ab65",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Haruka Nana",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 54
+            },
+            {
+                "name": "Normal",
+                "id": 3054,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "ba5d2428-f7e0-4c20-ac41-9dd56e9178b4",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Cat messenger Aru",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 55
+            },
+            {
+                "name": "Calm",
+                "id": 56
+            },
+            {
+                "name": "Excited",
+                "id": 57
+            },
+            {
+                "name": "Normal",
+                "id": 3055,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Calm",
+                "id": 3056,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Excited",
+                "id": 3057,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "00a5c10c-d3bd-459f-83fd-43180b521a44",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Cat Messenger Vy",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 58
+            },
+            {
+                "name": "Calm",
+                "id": 59
+            },
+            {
+                "name": "shy",
+                "id": 60
+            },
+            {
+                "name": "normal",
+                "id": 3058,
+                "type": "frame_decode"
+            },
+            {
+                "name": "calm",
+                "id": 3059,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "c20a2254-0349-4470-9fc8-e5c0f8cf3404",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Chinese rabbit",
+        "styles": [
+            {
+                "name": "normal",
+                "id": 61
+            },
+            {
+                "name": "surprised",
+                "id": 62
+            },
+            {
+                "name": "scared",
+                "id": 63
+            },
+            {
+                "name": "HeroHero",
+                "id": 64
+            },
+            {
+                "name": "Normal",
+                "id": 3061,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Surprise",
+                "id": 3062,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Scared",
+                "id": 3063,
+                "type": "frame_decode"
+            },
+            {
+                "name": "HeroHero",
+                "id": 3064,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "1f18ffc3-47ea-4ce0-9829-0576d03a7ec8",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Kurita Maron",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 67
+            },
+            {
+                "name": "Normal",
+                "id": 3067,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "04dbd989-32d0-40b4-9e71-17c920f2a8a9",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Aiel-tan",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 68
+            },
+            {
+                "name": "Normal",
+                "id": 3068,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "dda44ade-5f9c-4a3a-9d2c-2a976c7476d9",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Manbetsu Hanamaru",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 69
+            },
+            {
+                "name": "Energetic",
+                "id": 70
+            },
+            {
+                "name": "Whisper",
+                "id": 71
+            },
+            {
+                "name": "Beautiful",
+                "id": 72
+            },
+            {
+                "name": "Boy",
+                "id": 73
+            },
+            {
+                "name": "Normal",
+                "id": 3069,
+                "type": "frame_decode"
+            },
+            {
+                "name": "Energetic",
+                "id": 3070,
+                "type": "frame_decode"
+            },
+            {
+                "name": "whisper",
+                "id": 3071,
+                "type": "frame_decode"
+            },
+            {
+                "name": "cute girl",
+                "id": 3072,
+                "type": "frame_decode"
+            },
+            {
+                "name": "boy",
+                "id": 3073,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "287aa49f-e56b-4530-a469-855776c84a8d",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Kotoyo Nia",
+        "styles": [
+            {
+                "name": "normal",
+                "id": 74
+            },
+            {
+                "name": "Normal",
+                "id": 3074,
+                "type": "frame_decode"
+            }
+        ],
+        "speaker_uuid": "97a4af4b-086e-4efd-b125-7ae2da85e697",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Voidoll",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 89
+            }
+        ],
+        "speaker_uuid": "0ebe2c7d-96f3-4f0e-a2e3-ae13fe27c403",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Zonko",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 90
+            },
+            {
+                "name": "Low Blood Pressure",
+                "id": 91
+            },
+            {
+                "name": "Awakening",
+                "id": 92
+            },
+            {
+                "name": "Live Commentary",
+                "id": 93
+            }
+        ],
+        "speaker_uuid": "0156da66-4300-474a-a398-49eb2e8dd853",
+        "version": "0.15.7"
+    },
+    {
+        "name": "Central Tsurugi",
+        "styles": [
+            {
+                "name": "Normal",
+                "id": 94
+            },
+            {
+                "name": "Anger",
+                "id": 95
+            },
+            {
+                "name": "Whispering",
+                "id": 96
+            },
+            {
+                "name": "Nervous",
+                "id": 97
+            },
+            {
+                "name": "Despair and Defeat",
+                "id": 98
+            }
+        ],
+        "speaker_uuid": "4614a7de-9829-465d-9791-97eb8a5f9b86",
+        "version": "0.15.7"
+    }
+]

@@ -1,7 +1,7 @@
 .env
-simplePrivateAssistanceTTS/assets/models/
-simplePrivateAssistanceTTS/data/
-simplePrivateAssistanceTTS/core/__pycache__/
-simplePrivateAssistanceTTS/plugins/__pycache__/
-simplePrivateAssistanceTTS/logs/
+ALPH_VA/assets/models/
+ALPH_VA/data/
+ALPH_VA/core/__pycache__/
+ALPH_VA/plugins/__pycache__/
+ALPH_VA/logs/
 

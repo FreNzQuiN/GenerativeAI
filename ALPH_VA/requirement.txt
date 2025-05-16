@@ -1,0 +1,10 @@
+httpx
+setuptools
+pyttsx3
+google-genai
+voicevox-client
+googletrans
+TTS
+configparser
+SpeechRecognition
+PyAudio

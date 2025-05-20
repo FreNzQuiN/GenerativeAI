@@ -90,6 +90,7 @@ class TranslationPlugin:
             return None, None
 
 _plugin_instance = None
+
 def get_translator_plugin() -> TranslationPlugin | None:
     global _plugin_instance
     if _plugin_instance is None:

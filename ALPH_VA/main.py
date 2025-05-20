@@ -17,8 +17,8 @@ except AttributeError:
     )
     LOG_DIR_MAIN = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs"
-    )  # Fallback
-except Exception as e_path:  # Tangkap error lain saat setup path
+    )
+except Exception as e_path:
     print(
         "ERROR setting up LOG_DIR_MAIN: %s. Using current directory as fallback.",
         e_path,
@@ -146,7 +146,7 @@ class VirtualAssistantApp:
                 exc_info=True,
             )
             return ["Assistant"]
-        except OSError as e:  # Lebih spesifik untuk error file I/O
+        except OSError as e:
             logger.error(
                 "OSError loading available roles from %s: %s. Using default 'Assistant'.",
                 self.instruction_path,
@@ -154,7 +154,7 @@ class VirtualAssistantApp:
                 exc_info=True,
             )
             return ["Assistant"]
-        except Exception as e:  # Tangkap error umum lainnya
+        except Exception as e:
             logger.error(
                 "Unexpected error loading available roles from %s: %s. Using default 'Assistant'.",
                 self.instruction_path,
@@ -179,7 +179,7 @@ class VirtualAssistantApp:
                 AttributeError,
                 TypeError,
                 RuntimeError,
-            ) as e:  # RuntimeError dari LM jika API key salah
+            ) as e:
                 logger.error(
                     "Failed to instantiate LanguageModel: %s", e, exc_info=True
                 )
@@ -212,7 +212,6 @@ class VirtualAssistantApp:
 
     def _init_translator_plugin(self):
         """Helper untuk inisialisasi TranslatorPlugin."""
-        # Hanya inisialisasi jika benar-benar dibutuhkan (bahasa berbeda)
         if self.target_language.lower() == self.source_language.lower():
             logger.info(
                 "Source and target languages are the same. Translator plugin not initialized."
@@ -230,9 +229,7 @@ class VirtualAssistantApp:
                     logger.error(
                         "get_translator_plugin() from translator module returned None."
                     )
-            except (
-                Exception
-            ) as e:  # Bisa jadi error koneksi saat get_translator_plugin()
+            except Exception as e:
                 logger.error(
                     "Failed to get/instantiate TranslationPlugin: %s", e, exc_info=True
                 )
@@ -272,7 +269,6 @@ class VirtualAssistantApp:
                 logger.info("Pengguna memilih keluar dari aplikasi.")
                 print("Terima kasih telah menggunakan asisten virtual!")
                 if self.context_manager_instance:
-                    # save_to_archive sekarang mengembalikan bool
                     if not self.context_manager_instance.save_to_archive():
                         logger.error(
                             "Gagal menyimpan sesi aktif %s sebelum keluar.",
@@ -350,10 +346,8 @@ class VirtualAssistantApp:
                     self.context_manager_instance.session_id,
                 )
                 print("Menghapus chat saat ini dan memulai sesi baru...")
-                self.context_manager_instance = (
-                    self._init_context_manager()
-                )  # Re-inisialisasi CM
-                if not self.context_manager_instance:  # Jika gagal re-inisialisasi
+                self.context_manager_instance = self._init_context_manager()
+                if not self.context_manager_instance:
                     print(
                         "Gagal memulai sesi baru karena error internal. Keluar dari mode chat."
                     )
@@ -366,7 +360,7 @@ class VirtualAssistantApp:
                 )
                 continue
 
-            chat_history_content: list = []  # Default ke histori kosong
+            chat_history_content: list = []
             if user_input_lower in ["load", "muat"]:
                 logger.info(
                     "Pengguna memilih memuat ulang histori untuk sesi %s.",
@@ -376,28 +370,19 @@ class VirtualAssistantApp:
                 print(
                     f"Histori sesi saat ini ({len(chat_history_content)} pesan) dimuat ulang."
                 )
-                # Biasanya, kita tidak perlu input lagi setelah 'load', jadi continue
-                # Jika Anda ingin pengguna mengetik sesuatu setelah 'load', hapus continue.
-                # Untuk sekarang, asumsikan 'load' adalah aksi tunggal.
-                # Jika ingin 'load' diikuti prompt, maka jangan continue dan pastikan user_input_strip bukan 'load'
-                if (
-                    user_input_strip == user_input_lower
-                ):  # Hanya continue jika inputnya HANYA 'load' atau 'muat'
+                if user_input_strip == user_input_lower:
                     continue
 
-            if (
-                not user_input_strip
-            ):  # Abaikan input kosong (setelah pemeriksaan command)
+            if not user_input_strip:
                 continue
 
             try:
-                # Ambil histori terbaru jika belum dimuat ulang oleh 'load'
-                if not chat_history_content:  # Jika bukan command 'load'
+                if not chat_history_content:
                     chat_history_content = self.context_manager_instance.retrieve()
 
-                input_for_lm = user_input_strip  # Gunakan versi yang sudah di-strip
+                input_for_lm = user_input_strip
                 if self.source_language.lower() != self.target_language.lower():
-                    if not self.translator_plugin_instance:  # Cek jika translator ada
+                    if not self.translator_plugin_instance:
                         logger.warning(
                             "Translator tidak tersedia, menggunakan input asli untuk LM."
                         )
@@ -412,30 +397,24 @@ class VirtualAssistantApp:
                             target_lang=self.target_language,
                             source_lang=self.source_language,
                         )
-                        if (
-                            translated_input and translated_input != user_input_strip
-                        ):  # Hanya gunakan jika translasi berhasil & berbeda
+                        if translated_input and translated_input != user_input_strip:
                             input_for_lm = translated_input
                             logger.info(
                                 "Input for LM (after translation): %s...",
                                 input_for_lm[:50],
                             )
-                        elif (
-                            not translated_input
-                        ):  # Jika translasi mengembalikan None atau string kosong
+                        elif not translated_input:
                             logger.warning(
                                 "User input translation returned empty or None, using original input for LM."
                             )
-                        # Jika sama, berarti translasi tidak mengubah apa-apa atau kembali ke teks asli
 
                 response_from_lm = self.language_model_instance.generate_response(
                     language=self.target_language,
                     prompt=input_for_lm,
                     chat_history=chat_history_content,
                     role_override=self.current_chat_role,
-                    task="FULL",  # Default task, bisa dibuat dinamis
+                    task="FULL",
                 )
-                # Hapus spasi ekstra tapi pertahankan newline tunggal jika ada
                 response_from_lm = " ".join(response_from_lm.split())
                 logger.info(
                     "Response from LM (in %s, role %s): %s...",
@@ -471,7 +450,6 @@ class VirtualAssistantApp:
                                 "LM response translation returned empty or None, using original LM response for user."
                             )
 
-                # Menampilkan kedua versi jika berbeda, atau hanya satu jika sama
                 print(f"[Alph ({self.target_language})]: {response_from_lm}")
                 if (
                     final_response_for_user.lower() != response_from_lm.lower()
@@ -482,31 +460,24 @@ class VirtualAssistantApp:
                     self.target_language.lower() == self.source_language.lower()
                     and final_response_for_user.lower() != response_from_lm.lower()
                 ):
-                    # Ini seharusnya tidak terjadi jika bahasa sama, tapi sebagai jaga-jaga
                     print(
                         f"[Alph ({self.source_language}, translated?)]: {final_response_for_user}"
                     )
 
                 if not response_from_lm.startswith("[Gemini Error]"):
-                    self.context_manager_instance.remember(
-                        "user", user_input_strip
-                    )  # Simpan input asli pengguna
-                    self.context_manager_instance.remember(
-                        "model", response_from_lm
-                    )  # Simpan output asli LM
+                    self.context_manager_instance.remember("user", user_input_strip)
+                    self.context_manager_instance.remember("model", response_from_lm)
 
-            except ConnectionError as e_conn:  # Tangkap error koneksi spesifik
+            except ConnectionError as e_conn:
                 logger.error("Connection error during chat: %s", e_conn, exc_info=True)
                 print("Gagal terhubung ke layanan. Periksa koneksi internet Anda.")
-            except TimeoutError as e_timeout:  # Tangkap error timeout
+            except TimeoutError as e_timeout:
                 logger.error("Timeout error during chat: %s", e_timeout, exc_info=True)
                 print("Waktu respons habis. Coba lagi nanti.")
-            except (
-                RuntimeError
-            ) as e_rt:  # Misalnya dari LanguageModel jika API key bermasalah
+            except RuntimeError as e_rt:
                 logger.error("Runtime error during chat: %s", e_rt, exc_info=True)
                 print(f"Terjadi kesalahan runtime: {e_rt}")
-            except Exception as e:  # Tangkap error umum lainnya
+            except Exception as e:
                 logger.error("Unexpected error in chat mode: %s", e, exc_info=True)
                 print("Terjadi kesalahan tak terduga saat berkomunikasi.")
 
@@ -531,20 +502,19 @@ class VirtualAssistantApp:
             translated_text = await self.translator_plugin_instance.translate(
                 text, target_lang=target_lang, source_lang=actual_source_lang
             )
-            # Plugin translator harusnya mengembalikan string (bisa kosong) atau None jika gagal total
-            if translated_text is None:  # Gagal total
+            if translated_text is None:
                 logger.warning(
                     "Translation returned None for text: '%s...'. Returning original.",
                     text[:30],
                 )
-                return text  # Kembalikan teks asli jika None
-            return translated_text  # Kembalikan string (bisa kosong)
+                return text
+            return translated_text
         except ConnectionError as e_conn_trans:
             logger.error(
                 "Connection error during translation: %s", e_conn_trans, exc_info=True
             )
-            return text  # Fallback
-        except Exception as e:  # Tangkap error lain dari plugin
+            return text
+        except Exception as e:
             logger.error("Error during translation via plugin: %s", e, exc_info=True)
             return text
 
@@ -558,7 +528,6 @@ class VirtualAssistantApp:
                 "3": ("Bahasa Jepang", "ja"),
             }
 
-            # Pilihan Bahasa Input Pengguna
             print(f"Bahasa input Anda saat ini: {self.source_language}")
             print("Pilih bahasa input Anda:")
             for k, (name, _) in lang_options.items():
@@ -580,8 +549,6 @@ class VirtualAssistantApp:
                     self.source_language,
                 )
             print(f"Bahasa input Anda sekarang: {self.source_language}")
-
-            # Pilihan Bahasa Output Alph (Model)
             print(f"\nBahasa output Alph saat ini: {self.target_language}")
             print("Pilih bahasa output untuk Alph:")
             for k, (name, _) in lang_options.items():
@@ -604,12 +571,11 @@ class VirtualAssistantApp:
                 )
             print(f"Bahasa output Alph sekarang: {self.target_language}")
 
-            if not self.config.save_config():  # Simpan perubahan config
+            if not self.config.save_config():
                 logger.error("Gagal menyimpan preferensi bahasa ke file konfigurasi.")
             else:
                 print("Preferensi bahasa disimpan.")
 
-            # Re-inisialisasi translator jika bahasa berubah dan sebelumnya tidak diinisialisasi
             if (
                 self.source_language.lower() != self.target_language.lower()
                 and not self.translator_plugin_instance
@@ -625,20 +591,18 @@ class VirtualAssistantApp:
                 logger.info(
                     "Source and target languages are now the same. Translator instance might not be needed."
                 )
-                # Anda bisa memilih untuk men-None-kan translator_plugin_instance di sini jika mau
-                # self.translator_plugin_instance = None
 
         except KeyboardInterrupt:
             logger.warning("Pemilihan bahasa diinterupsi oleh pengguna.")
             print("\nPemilihan bahasa dibatalkan.")
-        except (configparser.Error, OSError) as e_cfg:  # Tangkap error config atau file
+        except (configparser.Error, OSError) as e_cfg:
             logger.error(
                 "Error terkait konfigurasi/file saat pemilihan bahasa: %s",
                 e_cfg,
                 exc_info=True,
             )
             print("Terjadi error saat menyimpan atau membaca konfigurasi bahasa.")
-        except Exception as e:  # Tangkap error umum lainnya
+        except Exception as e:
             logger.error(
                 "Error tidak terduga dalam pemilihan bahasa: %s", e, exc_info=True
             )
@@ -646,9 +610,7 @@ class VirtualAssistantApp:
 
     def select_role_preferences(self):
         logger.info("Entering role selection.")
-        if (
-            not self.available_roles
-        ):  # available_roles selalu list, minimal berisi fallback
+        if not self.available_roles:
             logger.error("Daftar peran tidak tersedia. Tidak dapat memilih peran.")
             print("Maaf, tidak dapat memuat pilihan peran saat ini.")
             return
@@ -678,13 +640,10 @@ class VirtualAssistantApp:
                         self.config.set_config_value(
                             "llm_settings", "default_chat_role", new_role
                         )
-                        # Jika LanguageModel mendukung perubahan role on-the-fly atau re-init dengan role baru
                         if self.language_model_instance and hasattr(
                             self.language_model_instance, "default_role"
                         ):
-                            self.language_model_instance.default_role = (
-                                new_role  # Asumsi LM punya atribut ini
-                            )
+                            self.language_model_instance.default_role = new_role
                             logger.info(
                                 "Default role LanguageModel juga diupdate ke: %s",
                                 new_role,
@@ -696,7 +655,7 @@ class VirtualAssistantApp:
                             choice_input,
                             self.current_chat_role,
                         )
-                except ValueError:  # Jika input bukan angka
+                except ValueError:
                     logger.warning(
                         "Input peran bukan angka ('%s'), tetap menggunakan: %s",
                         choice_input,

@@ -1,19 +1,14 @@
 # core/config_manager.py
 
-import configparser
-import os
-import logging
-import threading  # Untuk thread-safe Singleton
+import configparser, os, logging, threading
 
-# --- Global Constants (OK untuk konstanta konfigurasi dasar) ---
+# --- Global Constants ---
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT_DIR = os.path.dirname(CORE_DIR)
 LOG_DIR = os.path.join(PROJECT_ROOT_DIR, "logs")
 CONFIG_DIR = os.path.join(PROJECT_ROOT_DIR, "config")
 CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "config.ini")
 
-# --- Logging Setup ---
-# (Setup logger sama seperti sebelumnya, pastikan robust)
 if not os.path.exists(LOG_DIR):
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
@@ -52,7 +47,6 @@ if not logger.hasHandlers():
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
 
-# Pastikan CONFIG_DIR ada
 if not os.path.exists(CONFIG_DIR):
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -123,7 +117,6 @@ class ConfigManager:
                 for key, value in options.items():
                     self.config.set(section, str(key), str(value))
             try:
-                # Pastikan direktori ada sebelum menulis
                 os.makedirs(os.path.dirname(CONFIG_FILE_PATH), exist_ok=True)
                 with open(CONFIG_FILE_PATH, "w", encoding="utf-8") as configfile:
                     self.config.write(configfile)
@@ -137,7 +130,6 @@ class ConfigManager:
                     e,
                     exc_info=True,
                 )
-                # Jika gagal buat file, self.config akan berisi default tapi tidak tersimpan
         else:
             try:
                 read_files = self.config.read(CONFIG_FILE_PATH, encoding="utf-8")
@@ -266,7 +258,7 @@ class ConfigManager:
 
             str_value = str(value)
             self.config.set(section, key, str_value)
-            if self.save_config():  # Panggil metode save_config dari instance
+            if self.save_config():
                 logger.info(
                     "Set [%s].%s = %s and saved to config file.",
                     section,
@@ -350,7 +342,7 @@ class ConfigManager:
                     logger.error(
                         'Failed to save config after removing section "%s".', section
                     )
-                    self._initialize_or_load_config()  # Coba sinkronkan kembali
+                    self._initialize_or_load_config()
                     return False
             else:
                 logger.warning(
@@ -383,7 +375,7 @@ class ConfigManager:
                         key,
                         section,
                     )
-                    self._initialize_or_load_config()  # Coba sinkronkan kembali
+                    self._initialize_or_load_config()
                     return False
             else:
                 logger.warning(
@@ -405,7 +397,7 @@ class ConfigManager:
     def reset_config(self) -> bool:
         """Mereset objek config di memori ke default dan menyimpannya ke file."""
         try:
-            self.config.clear()  # Hapus semua section dari config instance
+            self.config.clear()
             default_structure = self._get_default_config_structure()
             for section, options in default_structure.items():
                 self.config.add_section(section)
@@ -421,7 +413,6 @@ class ConfigManager:
                 logger.error(
                     "Failed to save config after resetting to defaults. Config in memory is reset, but file might be out of sync."
                 )
-                # Coba muat ulang untuk konsistensi, meskipun ini akan menimpa reset di memori jika file masih lama
                 self._initialize_or_load_config()
                 return False
         except configparser.Error as e:
@@ -436,24 +427,18 @@ class ConfigManager:
         return self.config
 
 
-# Tidak ada lagi panggilan `ConfigManager()` di akhir file untuk "mengaktifkan" modul.
-# Modul ini sekarang menyediakan kelas ConfigManager yang siap digunakan.
-# Pengguna modul akan membuat instance: `cfg = ConfigManager()`
-
+# --- ConfigManager Test ---
 if __name__ == "__main__":
     logger.info(
         "=== Configuration Manager - Example Usage (No Global Config Object) ==="
     )
-
-    # Dapatkan instance ConfigManager (akan menginisialisasi config jika belum)
-    # Karena Singleton, ini akan selalu objek yang sama
     cfg_manager = ConfigManager()
     cfg_manager_2 = ConfigManager()
 
     logger.info(
         "Instance 1 ID: %s, Instance 2 ID: %s", id(cfg_manager), id(cfg_manager_2)
     )
-    assert id(cfg_manager) == id(cfg_manager_2)  # Memverifikasi Singleton
+    assert id(cfg_manager) == id(cfg_manager_2)
 
     logger.info(
         "PROJECT_ROOT_DIR from config: %s",
@@ -486,7 +471,6 @@ if __name__ == "__main__":
     )
     assert retrieved_default == "another_default_set"
 
-    # Menghapus section yang baru ditambahkan
     logger.info("Removing section 'non_existent_section'...")
     if cfg_manager.remove_section("non_existent_section"):
         logger.info("Section 'non_existent_section' removed.")

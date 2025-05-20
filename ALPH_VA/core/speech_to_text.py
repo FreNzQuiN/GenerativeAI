@@ -18,10 +18,10 @@ if not logger.hasHandlers():
 # --- Variabel Konfigurasi Global (dibaca sekali saat modul dimuat) ---
 DEFAULT_STT_LANGUAGE = config_manager.get_config_value("stt_settings", "default_language", "id-ID")
 PAUSE_THRESHOLD = config_manager.get_float("stt_settings", "pause_threshold", 2.0)
-ENERGY_THRESHOLD_MANUAL = config_manager.get_int("stt_settings", "energy_threshold", None) # None jika ingin auto-adjust
+ENERGY_THRESHOLD_MANUAL = config_manager.get_int("stt_settings", "energy_threshold", None) 
 DYNAMIC_ENERGY_THRESHOLD = config_manager.get_bool("stt_settings", "dynamic_energy_threshold", True)
 ADJUST_NOISE_ON_STARTUP = config_manager.get_bool("stt_settings", "adjust_noise_on_startup", True)
-DEFAULT_PHRASE_TIME_LIMIT = config_manager.get_float("stt_settings", "phrase_time_limit", None) # None berarti tidak ada batas keras
+DEFAULT_PHRASE_TIME_LIMIT = config_manager.get_float("stt_settings", "phrase_time_limit", None)
 
 # --- Inisialisasi dan Konfigurasi Recognizer Global ---
 recognizer_instance = None

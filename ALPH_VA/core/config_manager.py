@@ -243,7 +243,7 @@ class ConfigManager():
     def get_config(self):
         """Mengembalikan objek configparser untuk akses lebih lanjut."""
         return self.config
-    def set_config(self, section: str, key: str, value):
+    def set_config_value(self, section: str, key: str, value):
         """Menyetel nilai dalam file konfigurasi."""
         set_config_value(section, key, value)
     def get_config_value(self, section: str, key: str, default=None):

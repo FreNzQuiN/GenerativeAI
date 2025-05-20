@@ -1,4 +1,5 @@
 .env
+ALPH_VA/.pylintrc
 ALPH_VA/assets/models/
 ALPH_VA/data/
 ALPH_VA/core/__pycache__/

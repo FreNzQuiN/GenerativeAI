@@ -20,7 +20,7 @@ if not logger.hasHandlers():
         else:
             logger.warning("config_manager.LOG_DIR not found. Logging to current dir for language_model.")
             log_file_path = f"{os.path.split(__file__)[1].split('.')[0]}.log"
-    except Exception as e_log_setup:
+    except OSError as e_log_setup:
         logger.error(f"Error setting up logger for language_model: {e_log_setup}. Logging to current dir.", exc_info=True)
         log_file_path = f"{os.path.split(__file__)[1].split('.')[0]}.log"
         
@@ -190,13 +190,17 @@ class LanguageModel:
         self.safety_settings = DEFAULT_SAFETY_SETTINGS
         
         self.model_instance = None
-        if _genai_client is None: 
+        if _genai_client is None:
             try:
-                self.model_instance = genai.GenerativeModel(
-                    model_name=self.model_name,
-                    safety_settings=self.safety_settings
-                )
-                logger.info(f"Modern genai.GenerativeModel '{self.model_name}' instance created.")
+                if hasattr(genai, "GenerativeModel"):
+                    self.model_instance = genai.GenerativeModel(
+                        model_name=self.model_name,
+                        safety_settings=self.safety_settings
+                    )
+                    logger.info(f"Modern genai.GenerativeModel '{self.model_name}' instance created.")
+                else:
+                    logger.error("genai.GenerativeModel is not available in the installed google.genai module.")
+                    raise RuntimeError("genai.GenerativeModel is not available in the installed google.genai module.")
             except Exception as e_model_create:
                 logger.error(f"Failed to create GenerativeModel instance '{self.model_name}': {e_model_create}", exc_info=True)
                 raise RuntimeError(f"Gagal membuat instance GenerativeModel: {e_model_create}")

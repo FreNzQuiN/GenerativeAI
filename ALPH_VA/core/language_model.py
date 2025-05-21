@@ -448,6 +448,7 @@ class LanguageModel:
             return f"[Gemini Error - Client API]: {str(e_main_call)}"
 
 
+# --- LanguageModel Test ---
 if __name__ == "__main__":
     print("--- LanguageModel Standalone Test (genai.Client focus) ---")
     if not logging.getLogger().hasHandlers():

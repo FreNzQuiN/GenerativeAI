@@ -3,8 +3,8 @@ import asyncio, configparser
 import os, json, logging
 from core import config_manager as app_config
 from core import module_manager
+from plugins import default_tts
 
-# --- Setup Logging ---
 try:
     _cfg_for_paths = app_config.ConfigManager()
     _project_root_from_cfg = _cfg_for_paths.get_config_value(
@@ -54,9 +54,7 @@ class VirtualAssistantApp:
             self.manager = module_manager.ModuleManager()
         except Exception as e_init_core:
             logger.critical(
-                "Failed to initialize core managers (ConfigManager or ModuleManager): %s",
-                e_init_core,
-                exc_info=True,
+                "Failed to initialize core managers: %s", e_init_core, exc_info=True
             )
             raise RuntimeError(
                 f"Critical initialization failed: {e_init_core}"
@@ -82,16 +80,19 @@ class VirtualAssistantApp:
             )
             if self.default_chat_role not in self.available_roles:
                 logger.warning(
-                    "Default chat role '%s' from config not in available roles. Using first available: %s",
+                    "Default chat role '%s' from config not in available roles. Using first: %s",
                     self.default_chat_role,
                     self.available_roles[0],
                 )
                 self.default_chat_role = self.available_roles[0]
         self.current_chat_role = self.default_chat_role
+        self.current_audio_call_role = self.current_chat_role
 
         self.language_model_instance = self._init_language_model()
         self.context_manager_instance = self._init_context_manager()
         self.translator_plugin_instance = self._init_translator_plugin()
+        self.stt_processor_instance = self._init_stt_processor()
+        # self.tts_plugin_instance = self._init_tts_plugin("default_tts")
 
         logger.info("VirtualAssistantApp initialized successfully.")
 
@@ -212,31 +213,41 @@ class VirtualAssistantApp:
 
     def _init_translator_plugin(self):
         """Helper untuk inisialisasi TranslatorPlugin."""
-        if self.target_language.lower() == self.source_language.lower():
-            logger.info(
-                "Source and target languages are the same. Translator plugin not initialized."
-            )
-            return None
-
         translator_module = self.manager.get_plugin("translator")
-        if translator_module and hasattr(translator_module, "get_translator_plugin"):
+        if translator_module and hasattr(translator_module, "TranslationPlugin"):
             try:
-                instance = translator_module.get_translator_plugin()
+                instance = translator_module.TranslationPlugin()
                 if instance:
                     logger.info("TranslationPlugin instance obtained successfully.")
                     return instance
                 else:
                     logger.error(
-                        "get_translator_plugin() from translator module returned None."
+                        "TranslationPlugin() from translator module returned None."
                     )
             except Exception as e:
                 logger.error(
                     "Failed to get/instantiate TranslationPlugin: %s", e, exc_info=True
                 )
         else:
-            logger.error(
-                "Plugin 'translator' not loaded or does not have get_translator_plugin function."
-            )
+            logger.error("Plugin 'translator' not loaded.")
+        return None
+
+    def _init_stt_processor(self):
+        stt_module = self.manager.get_core_module("speech_to_text")
+        if stt_module and hasattr(stt_module, "get_stt_processor"):
+            try:
+                instance = stt_module.get_stt_processor(adjust_noise_on_first_get=True)
+                if instance:
+                    logger.info("STTProcessor instance obtained.")
+                    return instance
+                else:
+                    logger.error("get_stt_processor() returned None.")
+            except RuntimeError as e:
+                logger.error("RuntimeError getting STTProcessor: %s", e, exc_info=True)
+            except Exception as e:
+                logger.error("Failed to get STTProcessor: %s", e, exc_info=True)
+        else:
+            logger.error("Core module 'speech_to_text' not loaded/valid.")
         return None
 
     async def run(self):
@@ -247,13 +258,13 @@ class VirtualAssistantApp:
         while True:
             print("\n=== Menu Utama Virtual Assistant ===")
             print("1. Chat dengan Gemini")
-            print("2. Terjemahkan Kalimat (Belum tersedia)")
-            print("3. Panggilan Suara (STT-TTS) (Belum tersedia)")
+            print("2. Terjemahkan Kalimat")
+            print("3. Panggilan Suara (STT-TTS)")
             print("4. Pengaturan Bahasa")
             print("5. Pengaturan Peran Chat")
             print("6. Keluar")
 
-            prompt_menu = "Pilih mode (1-6) (Bahasa: %s, Peran: %s): " % (
+            prompt_menu = "Pilih mode (1-6) (Bhs: %s, Peran Chat: %s): " % (
                 self.source_language,
                 self.current_chat_role,
             )
@@ -261,30 +272,35 @@ class VirtualAssistantApp:
 
             if choice == "1":
                 await self.mode_chat_gemini()
+            elif choice == "2":
+                await self.mode_translate_sentence()
+            elif choice == "3":
+                await self.mode_audio_call()
             elif choice == "4":
                 self.select_language_preferences()
             elif choice == "5":
-                self.select_role_preferences()
+                self.select_role_preferences(context="chat")
             elif choice == "6":
                 logger.info("Pengguna memilih keluar dari aplikasi.")
                 print("Terima kasih telah menggunakan asisten virtual!")
-                if self.context_manager_instance:
-                    if not self.context_manager_instance.save_to_archive():
-                        logger.error(
-                            "Gagal menyimpan sesi aktif %s sebelum keluar.",
-                            self.context_manager_instance.session_id,
-                        )
-                    else:
-                        logger.info(
-                            "Sesi aktif %s disimpan sebelum keluar.",
-                            self.context_manager_instance.session_id,
-                        )
+                if (
+                    self.context_manager_instance
+                    and not self.context_manager_instance.save_to_archive()
+                ):
+                    logger.error(
+                        "Gagal menyimpan sesi aktif %s sebelum keluar.",
+                        self.context_manager_instance.session_id,
+                    )
+                else:
+                    logger.info(
+                        "Sesi aktif %s disimpan.",
+                        (
+                            self.context_manager_instance.session_id
+                            if self.context_manager_instance
+                            else "N/A"
+                        ),
+                    )
                 break
-            elif choice in ["2", "3"]:
-                logger.info(
-                    "Pengguna memilih opsi '%s' yang belum diimplementasikan.", choice
-                )
-                print("Fitur ini belum tersedia, silakan pilih opsi lain.")
             else:
                 logger.warning("Pilihan menu tidak valid: %s", choice)
                 print("Pilihan tidak valid, silakan coba lagi.")
@@ -293,32 +309,34 @@ class VirtualAssistantApp:
     async def mode_chat_gemini(self):
         if not self.language_model_instance:
             logger.error(
-                "LanguageModel instance is not available. Cannot start chat mode."
+                "LanguageModel instance not available. Cannot start chat mode."
             )
             print("Model bahasa tidak tersedia. Mode chat tidak dapat dimulai.")
             return
         if not self.context_manager_instance:
             logger.error(
-                "ContextManager instance is not available. Cannot start chat mode."
+                "Main ContextManager instance not available. Cannot start chat mode."
             )
-            print("Manajer konteks tidak tersedia. Mode chat tidak dapat dimulai.")
+            print(
+                "Manajer konteks utama tidak tersedia. Mode chat tidak dapat dimulai."
+            )
             return
 
+        active_chat_session_cm = self.context_manager_instance
+
         logger.info(
-            "Entering chat mode. Session: %s, Target Lang: %s, Source Lang: %s, Chat Role: %s",
-            self.context_manager_instance.session_id,
+            "Entering chat mode. Initial Session: %s, Target Lang: %s, Source Lang: %s, Chat Role: %s",
+            active_chat_session_cm.session_id,
             self.target_language,
             self.source_language,
             self.current_chat_role,
         )
         print(
-            f"\n=== Mode Chat dengan Gemini (Output: {self.target_language}, Input: {self.source_language}, Peran Alph: {self.current_chat_role}) ==="
+            f"\n=== Mode Chat (Peran: {self.current_chat_role}, Output: {self.target_language}, Input: {self.source_language}) ==="
         )
+        print("Sesi saat ini: %s" % active_chat_session_cm.session_id)
         print(
-            "Ketik 'exit' atau 'quit' untuk keluar (menyimpan), 'delete' atau 'hapus' untuk memulai sesi baru (tanpa menyimpan)."
-        )
-        print(
-            "Ketik 'load' atau 'muat' untuk memuat ulang histori dari sesi saat ini (jika diperlukan)."
+            "Perintah: 'exit'/'quit', 'delete'/'hapus' (sesi baru), 'load'/'muat' (sesi terakhir), 'load N' (sesi ke-N dari terakhir)."
         )
 
         while True:
@@ -329,56 +347,168 @@ class VirtualAssistantApp:
 
             if user_input_lower in ["exit", "quit", "keluar"]:
                 logger.info(
-                    "Pengguna keluar dari mode chat. Menyimpan sesi %s.",
-                    self.context_manager_instance.session_id,
+                    "Pengguna keluar dari mode chat. Menyimpan sesi aktif %s.",
+                    active_chat_session_cm.session_id,
                 )
-                if not self.context_manager_instance.save_to_archive():
+                if not active_chat_session_cm.save_to_archive():
                     logger.error(
                         "Gagal menyimpan sesi %s saat keluar dari mode chat.",
-                        self.context_manager_instance.session_id,
+                        active_chat_session_cm.session_id,
                     )
                 print("Keluar dari mode chat. Sesi disimpan.")
+                if (
+                    self.context_manager_instance.session_id
+                    != active_chat_session_cm.session_id
+                ):
+                    self.context_manager_instance = active_chat_session_cm
                 break
 
             if user_input_lower in ["delete", "del", "hapus"]:
+                session_id_to_delete = active_chat_session_cm.session_id
                 logger.info(
-                    "Pengguna memilih menghapus chat saat ini (sesi %s) dan memulai baru.",
-                    self.context_manager_instance.session_id,
+                    "Pengguna meminta penghapusan sesi %s dari arsip.",
+                    session_id_to_delete,
                 )
-                print("Menghapus chat saat ini dan memulai sesi baru...")
-                self.context_manager_instance = self._init_context_manager()
-                if not self.context_manager_instance:
+                print(f"Menghapus sesi {session_id_to_delete} dari arsip...")
+
+                if active_chat_session_cm.delete_from_archive():
+                    logger.info(
+                        "Sesi %s berhasil dihapus dari arsip.", session_id_to_delete
+                    )
+                    print(f"Sesi {session_id_to_delete} berhasil dihapus.")
+                else:
+                    logger.warning(
+                        "Gagal menghapus sesi %s dari arsip atau sesi tidak ditemukan.",
+                        session_id_to_delete,
+                    )
                     print(
-                        "Gagal memulai sesi baru karena error internal. Keluar dari mode chat."
+                        f"Gagal menghapus sesi {session_id_to_delete} atau sesi tidak ditemukan di arsip."
+                    )
+
+                print("Memulai sesi baru...")
+                new_cm_instance = self._init_context_manager()
+                if not new_cm_instance:
+                    print(
+                        "Gagal memulai sesi baru karena error internal. Mode chat mungkin tidak stabil."
                     )
                     logger.critical(
                         "Gagal re-inisialisasi ContextManager setelah delete command."
                     )
-                    break
-                logger.info(
-                    "Sesi baru dimulai: %s", self.context_manager_instance.session_id
-                )
+                else:
+                    active_chat_session_cm = new_cm_instance
+                    self.context_manager_instance = active_chat_session_cm
+                    logger.info(
+                        "Sesi baru dimulai: %s", active_chat_session_cm.session_id
+                    )
+                    print(f"Sesi baru dimulai: {active_chat_session_cm.session_id}")
                 continue
 
-            chat_history_content: list = []
-            if user_input_lower in ["load", "muat"]:
-                logger.info(
-                    "Pengguna memilih memuat ulang histori untuk sesi %s.",
-                    self.context_manager_instance.session_id,
-                )
-                chat_history_content = self.context_manager_instance.retrieve()
-                print(
-                    f"Histori sesi saat ini ({len(chat_history_content)} pesan) dimuat ulang."
-                )
-                if user_input_strip == user_input_lower:
-                    continue
+            load_command_triggered = False
+            session_index_to_load = -1
+
+            if user_input_lower.startswith("load ") or user_input_lower.startswith(
+                "muat "
+            ):
+                parts = user_input_strip.split()
+                if len(parts) == 2:
+                    try:
+                        raw_index = int(parts[1])
+                        if raw_index > 0:
+                            session_index_to_load = raw_index
+                        elif raw_index < 0:
+                            session_index_to_load = abs(raw_index)
+                        else:
+                            print(
+                                "Indeks sesi tidak valid (tidak boleh 0). Memuat sesi terakhir."
+                            )
+                            session_index_to_load = 1
+                        load_command_triggered = True
+                    except ValueError:
+                        print(
+                            "Perintah 'load' diikuti angka yang tidak valid. Contoh: 'load 2'. Memuat sesi terakhir."
+                        )
+                        session_index_to_load = 1
+                        load_command_triggered = True
+                else:
+                    session_index_to_load = 1
+                    load_command_triggered = True
+            elif user_input_lower in ["load", "muat"]:
+                session_index_to_load = 1
+                load_command_triggered = True
+
+            if load_command_triggered:
+                cm_class_from_module = None
+                cm_module_for_load = self.manager.get_core_module("context_manager")
+                if cm_module_for_load and hasattr(cm_module_for_load, "ContextManager"):
+                    cm_class_from_module = cm_module_for_load.ContextManager
+
+                if cm_class_from_module:
+                    list_of_sessions = cm_class_from_module.list_sessions()
+                    if list_of_sessions:
+                        if 0 < session_index_to_load <= len(list_of_sessions):
+                            target_python_index = session_index_to_load - 1
+                            session_id_to_load = list_of_sessions[target_python_index][
+                                "session_id"
+                            ]
+
+                            logger.info(
+                                "Attempting to load session %d from last (ID: %s)",
+                                session_index_to_load,
+                                session_id_to_load,
+                            )
+                            print(
+                                f"\nMemuat sesi ke-{session_index_to_load} dari terakhir (ID: {session_id_to_load})..."
+                            )
+
+                            loaded_cm_instance = cm_class_from_module.load_from_archive(
+                                session_id_to_load
+                            )
+                            if loaded_cm_instance:
+                                active_chat_session_cm = loaded_cm_instance
+                                self.context_manager_instance = active_chat_session_cm
+                                logger.info(
+                                    "Successfully loaded session '%s'. User: '%s'. History: %d messages.",
+                                    active_chat_session_cm.session_id,
+                                    active_chat_session_cm.user,
+                                    len(active_chat_session_cm.retrieve()),
+                                )
+                                print(
+                                    f"Berhasil memuat sesi '{active_chat_session_cm.session_id}'."
+                                )
+                                print(
+                                    f"Sesi saat ini: {active_chat_session_cm.session_id}"
+                                )
+                            else:
+                                logger.warning(
+                                    "Failed to load session ID %s.", session_id_to_load
+                                )
+                                print(
+                                    f"Gagal memuat sesi dengan ID '{session_id_to_load}'. Tetap di sesi saat ini."
+                                )
+                        else:
+                            logger.warning(
+                                "Requested session index %d is out of bounds (1 to %d).",
+                                session_index_to_load,
+                                len(list_of_sessions),
+                            )
+                            print(
+                                f"Indeks sesi tidak valid. Hanya ada {len(list_of_sessions)} sesi tersimpan. Tetap di sesi saat ini."
+                            )
+                    else:
+                        logger.info("No saved sessions found to load.")
+                        print("Tidak ada sesi tersimpan yang bisa dimuat.")
+                else:
+                    logger.error(
+                        "ContextManager class not available for loading session."
+                    )
+                    print("Gagal mengakses manajer konteks untuk memuat sesi.")
+                continue
 
             if not user_input_strip:
                 continue
 
             try:
-                if not chat_history_content:
-                    chat_history_content = self.context_manager_instance.retrieve()
+                chat_history_content = active_chat_session_cm.retrieve()
 
                 input_for_lm = user_input_strip
                 if self.source_language.lower() != self.target_language.lower():
@@ -392,10 +522,12 @@ class VirtualAssistantApp:
                             self.source_language,
                             self.target_language,
                         )
-                        translated_input = await self.translate_text_via_plugin(
-                            user_input_strip,
-                            target_lang=self.target_language,
-                            source_lang=self.source_language,
+                        translated_input = (
+                            await self.translator_plugin_instance.translate(
+                                user_input_strip,
+                                target_lang=self.target_language,
+                                source_lang=self.source_language,
+                            )
                         )
                         if translated_input and translated_input != user_input_strip:
                             input_for_lm = translated_input
@@ -405,7 +537,7 @@ class VirtualAssistantApp:
                             )
                         elif not translated_input:
                             logger.warning(
-                                "User input translation returned empty or None, using original input for LM."
+                                "User input translation failed/empty, using original input for LM."
                             )
 
                 response_from_lm = self.language_model_instance.generate_response(
@@ -415,15 +547,15 @@ class VirtualAssistantApp:
                     role_override=self.current_chat_role,
                     task="FULL",
                 )
-                response_from_lm = " ".join(response_from_lm.split())
+                response_from_lm_clean = " ".join(response_from_lm.split())
                 logger.info(
                     "Response from LM (in %s, role %s): %s...",
                     self.target_language,
                     self.current_chat_role,
-                    response_from_lm[:100],
+                    response_from_lm_clean[:100],
                 )
 
-                final_response_for_user = response_from_lm
+                final_response_for_user = response_from_lm_clean
                 if self.target_language.lower() != self.source_language.lower():
                     if not self.translator_plugin_instance:
                         logger.warning(
@@ -435,39 +567,33 @@ class VirtualAssistantApp:
                             self.target_language,
                             self.source_language,
                         )
-                        translated_response = await self.translate_text_via_plugin(
-                            response_from_lm,
-                            target_lang=self.source_language,
-                            source_lang=self.target_language,
+                        translated_response = (
+                            await self.translator_plugin_instance.translate(
+                                response_from_lm_clean,
+                                target_lang=self.source_language,
+                                source_lang=self.target_language,
+                            )
                         )
                         if (
                             translated_response
-                            and translated_response != response_from_lm
+                            and translated_response != response_from_lm_clean
                         ):
                             final_response_for_user = translated_response
                         elif not translated_response:
                             logger.warning(
-                                "LM response translation returned empty or None, using original LM response for user."
+                                "LM response translation failed/empty, using original LM response for user."
                             )
 
-                print(f"[Alph ({self.target_language})]: {response_from_lm}")
+                print(f"[Alph ({self.target_language})]: {response_from_lm_clean}")
                 if (
-                    final_response_for_user.lower() != response_from_lm.lower()
+                    final_response_for_user.lower() != response_from_lm_clean.lower()
                     and self.target_language.lower() != self.source_language.lower()
                 ):
                     print(f"[Alph ({self.source_language})]: {final_response_for_user}")
-                elif (
-                    self.target_language.lower() == self.source_language.lower()
-                    and final_response_for_user.lower() != response_from_lm.lower()
-                ):
-                    print(
-                        f"[Alph ({self.source_language}, translated?)]: {final_response_for_user}"
-                    )
 
                 if not response_from_lm.startswith("[Gemini Error]"):
-                    self.context_manager_instance.remember("user", user_input_strip)
-                    self.context_manager_instance.remember("model", response_from_lm)
-
+                    active_chat_session_cm.remember("user", user_input_strip)
+                    active_chat_session_cm.remember("model", response_from_lm)
             except ConnectionError as e_conn:
                 logger.error("Connection error during chat: %s", e_conn, exc_info=True)
                 print("Gagal terhubung ke layanan. Periksa koneksi internet Anda.")
@@ -481,42 +607,53 @@ class VirtualAssistantApp:
                 logger.error("Unexpected error in chat mode: %s", e, exc_info=True)
                 print("Terjadi kesalahan tak terduga saat berkomunikasi.")
 
-    async def translate_text_via_plugin(
-        self, text: str, target_lang: str, source_lang: str | None = None
-    ) -> str | None:
+    async def mode_translate_sentence(self):
+        logger.info("Entering sentence translation mode.")
         if not self.translator_plugin_instance:
-            logger.warning(
-                "Translator plugin instance is not available. Cannot translate. Returning original text."
-            )
-            return text
+            logger.error("Translator plugin not available for translation mode.")
+            print("Layanan penerjemah tidak tersedia saat ini.")
+            return
 
-        actual_source_lang = source_lang or self.source_language
-
-        logger.debug(
-            "Attempting translation via plugin: '%s...' from %s to %s",
-            text[:30],
-            actual_source_lang,
-            target_lang,
+        print("\n=== Mode Terjemahkan Kalimat ===")
+        print(
+            f"Bahasa sumber default: {self.source_language}, Bahasa target default: {self.target_language}"
         )
-        try:
-            translated_text = await self.translator_plugin_instance.translate(
-                text, target_lang=target_lang, source_lang=actual_source_lang
-            )
-            if translated_text is None:
-                logger.warning(
-                    "Translation returned None for text: '%s...'. Returning original.",
-                    text[:30],
+        print("Anda bisa mengubah bahasa default melalui menu Pengaturan Bahasa.")
+        print("Ketik 'exit' atau 'quit' untuk kembali ke menu utama.")
+
+        while True:
+            text_to_translate = (
+                await asyncio.to_thread(input, "Masukkan teks untuk diterjemahkan: ")
+            ).strip()
+            if text_to_translate.lower() in ["exit", "quit", "keluar"]:
+                logger.info("Exiting translation mode.")
+                break
+            if not text_to_translate:
+                continue
+
+            src_lang = input("Bahasa Input: ")
+            if src_lang == "":
+                self.source_language
+            tgt_lang = input("Bahasa Target: ")
+            if tgt_lang == "":
+                self.target_language
+
+            if src_lang.lower() == tgt_lang.lower():
+                print(
+                    f"Hasil ({tgt_lang}): {text_to_translate} (bahasa sumber dan target sama)"
                 )
-                return text
-            return translated_text
-        except ConnectionError as e_conn_trans:
-            logger.error(
-                "Connection error during translation: %s", e_conn_trans, exc_info=True
+                continue
+
+            print(f"Menerjemahkan dari {src_lang} ke {tgt_lang}...")
+            translated_text = await self.translator_plugin_instance.translate(
+                text_to_translate, tgt_lang, src_lang
             )
-            return text
-        except Exception as e:
-            logger.error("Error during translation via plugin: %s", e, exc_info=True)
-            return text
+
+            if translated_text is not None:
+                print(f"Hasil ({tgt_lang}): {translated_text}")
+            else:
+                print("Gagal menerjemahkan teks.")
+            print("-" * 20)
 
     def select_language_preferences(self):
         logger.info("Entering language selection.")
@@ -683,6 +820,264 @@ class VirtualAssistantApp:
                 "Error tidak terduga dalam pemilihan peran: %s", e, exc_info=True
             )
             print("Terjadi error tidak terduga saat mengatur peran.")
+
+    async def mode_audio_call(self):
+        logger.info("Entering audio call mode.")
+        if not self.stt_processor_instance:
+            logger.error("STT processor not available for audio call mode.")
+            print("Layanan pengenalan suara tidak tersedia.")
+            return
+        if not self.language_model_instance:
+            logger.error("Language model not available for audio call mode.")
+            print("Model bahasa tidak tersedia.")
+            return
+
+        call_cm_module = self.manager.get_core_module("context_manager")
+        if not call_cm_module or not hasattr(call_cm_module, "ContextManager"):
+            logger.error("Cannot create ContextManager for audio call.")
+            print("Gagal memulai sesi konteks untuk panggilan suara.")
+            return
+
+        current_call_context = call_cm_module.ContextManager()
+        current_call_role = self.current_audio_call_role
+
+        print(f"\n=== Mode Panggilan Suara (Peran Alph: {current_call_role}) ===")
+        print("Katakan 'Alpha keluar' untuk mengakhiri panggilan.")
+        print("Katakan 'Alpha diam' untuk mute/unmute STT.")
+        print("Katakan 'Alpha ganti peran' untuk memilih peran baru.")
+
+        stt_active = True
+        initial_greeting = f"Halo! Anda terhubung dengan Alph (peran: {current_call_role}). Ada yang bisa saya bantu?"
+        if self.target_language.lower() != "id":
+            if self.translator_plugin_instance:
+                translated_greeting = await self.translator_plugin_instance.translate(
+                    initial_greeting, self.target_language, "id"
+                )
+                if translated_greeting:
+                    initial_greeting = translated_greeting
+
+        print(f"[Alph ({self.target_language})]: {initial_greeting}")
+        try:
+            await asyncio.to_thread(
+                default_tts.speak_text_sync,
+                initial_greeting,
+                language_code=self.target_language,
+            )
+        except Exception as e_tts_greet:
+            logger.error("Failed to speak initial greeting: %s", e_tts_greet)
+
+        while True:
+            if not stt_active:
+                cmd_input = (
+                    (
+                        await asyncio.to_thread(
+                            input,
+                            "STT Mute. Ketik 'on' untuk aktifkan, 'keluar', 'ganti peran': ",
+                        )
+                    )
+                    .strip()
+                    .lower()
+                )
+                if cmd_input == "on":
+                    stt_active = True
+                    print("STT diaktifkan.")
+                    logger.info("Audio call STT unmuted by user.")
+                elif cmd_input == "keluar":
+                    logger.info("Audio call ended by user command while muted.")
+                    break
+                elif cmd_input == "ganti peran":
+                    print("Mengganti peran Alph...")
+                    self.select_role_preferences(context="call")
+                    current_call_role = self.current_audio_call_role
+                    current_call_context = call_cm_module.ContextManager()
+                    print(
+                        f"Peran Alph diubah menjadi {current_call_role}. Sesi panggilan direset."
+                    )
+                    logger.info(
+                        "Audio call role changed to %s, context reset.",
+                        current_call_role,
+                    )
+                else:
+                    print("Perintah tidak dikenal saat STT mute.")
+                continue
+
+            print("Mendengarkan...")
+            user_speech = self.stt_processor_instance.listen_and_recognize(
+                language=self.source_language
+            )
+
+            if user_speech is None:
+                logger.debug("STT returned None (timeout or no speech).")
+                continue
+
+            print(f"[User ({self.source_language})]: {user_speech}")
+            logger.info("STT recognized: %s", user_speech)
+
+            user_speech_lower = user_speech.lower()
+            if (
+                "alpha keluar" in user_speech_lower
+                or "alfa keluar" in user_speech_lower
+            ):
+                logger.info("Audio call ended by voice command 'Alpha keluar'.")
+                farewell_msg = "Baik, panggilan diakhiri."
+                if (
+                    self.target_language.lower() != "id"
+                    and self.translator_plugin_instance
+                ):
+                    translated_farewell = (
+                        await self.translator_plugin_instance.translate(
+                            farewell_msg, self.target_language, "id"
+                        )
+                    )
+                    if translated_farewell:
+                        farewell_msg = translated_farewell
+                print(f"[Alph ({self.target_language})]: {farewell_msg}")
+                try:
+                    await asyncio.to_thread(
+                        default_tts.speak_text_sync,
+                        farewell_msg,
+                        language_code=self.target_language,
+                    )
+                except Exception as e_tts_bye:
+                    logger.error("Failed to speak farewell: %s", e_tts_bye)
+                break
+
+            if "alpha diam" in user_speech_lower or "alfa diam" in user_speech_lower:
+                stt_active = not stt_active
+                status_msg = (
+                    "STT di-mute." if not stt_active else "STT diaktifkan kembali."
+                )
+                logger.info(
+                    "Audio call STT status toggled by voice command. Active: %s",
+                    stt_active,
+                )
+                if (
+                    self.target_language.lower() != "id"
+                    and self.translator_plugin_instance
+                ):
+                    translated_status = await self.translator_plugin_instance.translate(
+                        status_msg, self.target_language, "id"
+                    )
+                    if translated_status:
+                        status_msg = translated_status
+                print(f"[Alph ({self.target_language})]: {status_msg}")
+                try:
+                    await asyncio.to_thread(
+                        default_tts.speak_text_sync,
+                        status_msg,
+                        language_code=self.target_language,
+                    )
+                except Exception as e_tts_mute:
+                    logger.error("Failed to speak mute status: %s", e_tts_mute)
+                continue
+
+            if (
+                "alpha ganti peran" in user_speech_lower
+                or "alfa ganti peran" in user_speech_lower
+            ):
+                logger.info("Audio call role change requested by voice command.")
+                role_change_ack = "Baik, silakan pilih peran baru melalui input teks."
+                if (
+                    self.target_language.lower() != "id"
+                    and self.translator_plugin_instance
+                ):
+                    translated_ack = await self.translator_plugin_instance.translate(
+                        role_change_ack, self.target_language, "id"
+                    )
+                    if translated_ack:
+                        role_change_ack = translated_ack
+                print(f"[Alph ({self.target_language})]: {role_change_ack}")
+                try:
+                    await asyncio.to_thread(
+                        default_tts.speak_text_sync,
+                        role_change_ack,
+                        language_code=self.target_language,
+                    )
+                except Exception as e_tts_role:
+                    logger.error("Failed to speak role change ack: %s", e_tts_role)
+
+                stt_active = False
+                self.select_role_preferences(context="call")
+                current_call_role = self.current_audio_call_role
+                current_call_context = call_cm_module.ContextManager()
+
+                role_changed_msg = f"Peran Alph diubah menjadi {current_call_role}. Sesi panggilan direset. Anda bisa bicara lagi."
+                if (
+                    self.target_language.lower() != "id"
+                    and self.translator_plugin_instance
+                ):
+                    translated_changed = (
+                        await self.translator_plugin_instance.translate(
+                            role_changed_msg, self.target_language, "id"
+                        )
+                    )
+                    if translated_changed:
+                        role_changed_msg = translated_changed
+                print(f"[Alph ({self.target_language})]: {role_changed_msg}")
+                try:
+                    await asyncio.to_thread(
+                        default_tts.speak_text_sync,
+                        role_changed_msg,
+                        language_code=self.target_language,
+                    )
+                except Exception as e_tts_done_role:
+                    logger.error(
+                        "Failed to speak role changed msg: %s", e_tts_done_role
+                    )
+                stt_active = True
+                continue
+
+            try:
+                input_for_lm = user_speech
+                if (
+                    self.source_language.lower() != self.target_language.lower()
+                    and self.translator_plugin_instance
+                ):
+                    translated_stt = await self.translator_plugin_instance.translate(
+                        user_speech, self.target_language, self.source_language
+                    )
+                    if translated_stt:
+                        input_for_lm = translated_stt
+
+                call_history = current_call_context.retrieve()
+                response_lm = self.language_model_instance.generate_response(
+                    self.target_language, input_for_lm, call_history, current_call_role
+                )
+                response_lm_clean = " ".join(response_lm.split())
+
+                print(f"[Alph ({self.target_language})]: {response_lm_clean}")
+                await asyncio.to_thread(
+                    default_tts.speak_text_sync,
+                    response_lm_clean,
+                    language_code=self.target_language,
+                )
+
+                if not response_lm.startswith("[Gemini Error]"):
+                    current_call_context.remember("user", user_speech)
+                    current_call_context.remember("model", response_lm)
+            except Exception as e_call_logic:
+                logger.error(
+                    "Error during audio call logic: %s", e_call_logic, exc_info=True
+                )
+                error_msg = "Maaf, terjadi sedikit gangguan."
+                if (
+                    self.target_language.lower() != "id"
+                    and self.translator_plugin_instance
+                ):
+                    translated_err = await self.translator_plugin_instance.translate(
+                        error_msg, self.target_language, "id"
+                    )
+                    if translated_err:
+                        error_msg = translated_err
+                print(f"[Alph ({self.target_language})]: {error_msg}")
+                try:
+                    await asyncio.to_thread(
+                        default_tts.speak_text_sync,
+                        error_msg,
+                        language_code=self.target_language,
+                    )
+                except Exception as e_tts_err:
+                    logger.error("Failed to speak error message: %s", e_tts_err)
 
 
 # --- Main execution ---

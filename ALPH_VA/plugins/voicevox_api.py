@@ -1,147 +1,235 @@
 # plugins/voicevox_api.py
-
 import asyncio
 import time
 import os
-from voicevox import Client # Pastikan library voicevox-client terinstal
-import plugins.play_voice as play_voice # Mengganti nama agar lebih jelas
-from core import config_manager # Menggunakan ConfigManager yang sudah kita buat
+from voicevox import Client as VoicevoxClient  # Menggunakan alias untuk Client
+from voicevox.errors import VoicevoxError  # Menangkap error spesifik Voicevox
+import plugins.play_voice as play_voice
+from core.config_manager import ConfigManager
 import logging
 
-# --- Setup Logging ---
+try:
+    _cfg = ConfigManager()
+except Exception as e_cfg_init_vv:
+    print(
+        f"CRITICAL ERROR in voicevox_api.py: Failed to initialize ConfigManager: {e_cfg_init_vv}"
+    )
+    raise RuntimeError(
+        f"VoicevoxAPI: ConfigManager initialization failed: {e_cfg_init_vv}"
+    ) from e_cfg_init_vv
+
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
-    log_file_path = os.path.join(config_manager.LOG_DIR, f"{os.path.split(__file__)[1].split('.')[0]}.log")
-    file_handler = logging.FileHandler(log_file_path)
-    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.INFO)
+    log_file_path = ""
+    try:
+        _log_dir_vv = _cfg.get_config_value(
+            "general",
+            "log_dir",
+            os.path.join(
+                _cfg.get_config_value(
+                    "general",
+                    "project_root_dir",
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                ),
+                "logs",
+            ),
+        )
+        if not os.path.exists(_log_dir_vv):
+            os.makedirs(_log_dir_vv, exist_ok=True)
+        log_file_path = os.path.join(
+            _log_dir_vv, f"{os.path.splitext(os.path.basename(__file__))[0]}.log"
+        )
+    except Exception as e_log_path_vv:
+        logger.error(
+            "Error determining log_file_path for voicevox_api: %s. Using fallback.",
+            e_log_path_vv,
+            exc_info=False,
+        )
+        log_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.log"
+    try:
+        file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s"
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        logger.setLevel(logging.INFO)
+    except OSError as e_fh_vv:
+        logger.error(
+            "OSError setting up file handler for voicevox_api: %s. Using basicConfig.",
+            e_fh_vv,
+            exc_info=True,
+        )
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+    except Exception as e_log_vv:
+        logger.error(
+            "Unexpected error setting up logger for voicevox_api: %s. Using basicConfig.",
+            e_log_vv,
+            exc_info=True,
+        )
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
 
-# --- Baca Konfigurasi ---
-# Path dasar untuk output audio dari config general
-# Kita akan membuat subdirektori 'voicevox' di dalamnya jika belum ada
-BASE_AUDIO_OUTPUT_PATH_CONFIG = config_manager.get_config_value("general", "audio_output_path", "data/audio/")
-# Pastikan path ini absolut atau relatif terhadap project root
-if not os.path.isabs(BASE_AUDIO_OUTPUT_PATH_CONFIG):
-    BASE_AUDIO_OUTPUT_PATH = os.path.join(config_manager.PROJECT_ROOT_DIR, BASE_AUDIO_OUTPUT_PATH_CONFIG)
-else:
-    BASE_AUDIO_OUTPUT_PATH = BASE_AUDIO_OUTPUT_PATH_CONFIG
+_project_root_vv = _cfg.get_config_value(
+    "general",
+    "project_root_dir",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+)
+BASE_AUDIO_OUTPUT_PATH_CONFIG = _cfg.get_config_value(
+    "general", "audio_output_path", "data/audio/"
+)
+_base_audio_path = (
+    os.path.join(_project_root_vv, BASE_AUDIO_OUTPUT_PATH_CONFIG)
+    if not os.path.isabs(BASE_AUDIO_OUTPUT_PATH_CONFIG)
+    else BASE_AUDIO_OUTPUT_PATH_CONFIG
+)
+VOICEVOX_AUDIO_DIR = os.path.join(_base_audio_path, "voicevox")
 
-# Subdirektori spesifik untuk Voicevox agar tidak tercampur dengan TTS lain
-VOICEVOX_AUDIO_DIR = os.path.join(BASE_AUDIO_OUTPUT_PATH, "voicevox")
 if not os.path.exists(VOICEVOX_AUDIO_DIR):
     try:
-        os.makedirs(VOICEVOX_AUDIO_DIR)
-        logger.info(f"Created Voicevox audio output directory: {VOICEVOX_AUDIO_DIR}")
-    except Exception as e:
-        logger.error(f"Failed to create Voicevox audio output directory {VOICEVOX_AUDIO_DIR}: {e}")
-        # Fallback ke base audio path jika gagal membuat subdirektori
-        VOICEVOX_AUDIO_DIR = BASE_AUDIO_OUTPUT_PATH
+        os.makedirs(VOICEVOX_AUDIO_DIR, exist_ok=True)
+        logger.info("Created Voicevox audio output directory: %s", VOICEVOX_AUDIO_DIR)
+    except OSError as e:
+        logger.error(
+            "Failed to create Voicevox audio output directory %s: %s",
+            VOICEVOX_AUDIO_DIR,
+            e,
+            exc_info=True,
+        )
+        VOICEVOX_AUDIO_DIR = (
+            _base_audio_path  # Fallback ke base path jika subdirektori gagal dibuat
+        )
+
+DEFAULT_SPEAKER_ID = _cfg.get_int("tts_settings", "voicevox_speaker_id", 3)
+VOICEVOX_HOST = _cfg.get_config_value("tts_voicevox_specifics", "host", "127.0.0.1")
+VOICEVOX_PORT = _cfg.get_int("tts_voicevox_specifics", "port", 50021)
+VOICEVOX_BASE_URL = f"http://{VOICEVOX_HOST}:{VOICEVOX_PORT}"
 
 
-# Default speaker ID dari config tts_settings
-DEFAULT_SPEAKER_ID = config_manager.get_int("tts_settings", "voicevox_speaker_id", 3) # Default ke 3 jika tidak ada
-
-# Voicevox Host and Port (jika perlu dikonfigurasi)
-VOICEVOX_HOST = config_manager.get_config_value("tts_voicevox_specifics", "host", "127.0.0.1") # Contoh
-VOICEVOX_PORT = config_manager.get_int("tts_voicevox_specifics", "port", 50021)       # Contoh
-
-async def generate_speech(text: str, speaker_id: int = None) -> str | None:
-    """
-    Generates speech using Voicevox API and saves it to a file.
-    Plays the generated audio.
-
-    Args:
-        text (str): The text to synthesize.
-        speaker_id (int, optional): The Voicevox speaker ID. 
-                                    Defaults to DEFAULT_SPEAKER_ID from config.
-
-    Returns:
-        str | None: The full path to the generated audio file if successful, else None.
-    """
+async def generate_speech(text: str, speaker_id: int | None = None) -> str | None:
     actual_speaker_id = speaker_id if speaker_id is not None else DEFAULT_SPEAKER_ID
-    
-    # Buat nama file unik
     timestamp = str(int(time.time()))
     audio_filename = f"voicevox_{timestamp}_spk{actual_speaker_id}.wav"
     full_audio_path = os.path.join(VOICEVOX_AUDIO_DIR, audio_filename)
 
-    logger.info(f"Attempting to generate speech for text: '{text[:50]}...' with speaker ID: {actual_speaker_id}")
-    
+    logger.info(
+        "Attempting Voicevox speech: '%s...' (Speaker: %d)",
+        text[:50],
+        actual_speaker_id,
+    )
+
     try:
-        # Menggunakan host dan port dari config jika library Client mendukungnya
-        # Periksa dokumentasi voicevox-client Anda untuk cara set base_url
-        # Jika Client() tidak menerima base_url, Anda mungkin perlu set env var VOICEVOX_BASE_URL
-        # atau library akan menggunakan defaultnya.
-        # Untuk sekarang, kita asumsikan Client() akan menemukan engine Voicevox yang berjalan.
-        # Jika voicevox-client versi baru, mungkin: client = Client(base_url=f"http://{VOICEVOX_HOST}:{VOICEVOX_PORT}")
-        async with Client() as client: # Anda mungkin perlu Client(base_url=f"http://{VOICEVOX_HOST}:{VOICEVOX_PORT}")
-            logger.debug("Voicevox client initialized.")
-            audio_query = await client.create_audio_query(text=text, speaker=actual_speaker_id)
-            logger.debug(f"Audio query created for speaker {actual_speaker_id}.")
-            
+        async with VoicevoxClient(base_url=VOICEVOX_BASE_URL) as client:
+            logger.debug("Voicevox client connected to %s", VOICEVOX_BASE_URL)
+            audio_query = await client.create_audio_query(
+                text=text, speaker=actual_speaker_id
+            )
+            logger.debug("Audio query created for speaker %d.", actual_speaker_id)
             audio_data = await audio_query.synthesis(speaker=actual_speaker_id)
             logger.debug("Speech synthesis complete.")
 
             with open(full_audio_path, "wb") as f:
                 f.write(audio_data)
-            logger.info(f"Generated audio file saved to: {full_audio_path}")
-        play_blocking = config_manager.get_bool("tts_settings", "voicevox_play_blocking", True)
+            logger.info("Generated audio file saved: %s", full_audio_path)
+
+        play_blocking = _cfg.get_bool("tts_settings", "voicevox_play_blocking", True)
         play_voice.play_audio_file(full_audio_path, block_until_done=play_blocking)
-        
         return full_audio_path
-    except ConnectionRefusedError:
-        logger.error(f"Connection refused. Ensure Voicevox engine is running and accessible at expected host/port.")
+    except ConnectionRefusedError as e_conn:
+        logger.error(
+            "Connection refused for Voicevox at %s. Ensure Voicevox engine is running: %s",
+            VOICEVOX_BASE_URL,
+            e_conn,
+        )
         return None
-    except Exception as e:
-        logger.error(f"Error during Voicevox speech generation or playback: {e}", exc_info=True)
+    except VoicevoxError as e_vv_sdk:  # Error spesifik dari SDK Voicevox
+        logger.error("Voicevox SDK error: %s", e_vv_sdk, exc_info=True)
+        return None
+    except OSError as e_os:  # Error saat menulis file
+        logger.error(
+            "OSError during Voicevox speech generation (file write?): %s",
+            e_os,
+            exc_info=True,
+        )
+        return None
+    except Exception as e:  # Tangkap error tak terduga lainnya
+        logger.error(
+            "Unexpected error in Voicevox speech generation/playback: %s",
+            e,
+            exc_info=True,
+        )
         return None
 
+
 def remove_all_voicevox_outputs():
-    """Removes all .wav files from the Voicevox audio output directory."""
     removed_count = 0
-    if not os.path.exists(VOICEVOX_AUDIO_DIR):
-        logger.warning(f"Voicevox audio directory not found, cannot remove files: {VOICEVOX_AUDIO_DIR}")
+    if not os.path.isdir(VOICEVOX_AUDIO_DIR):  # Cek jika direktori, bukan hanya exists
+        logger.warning(
+            "Voicevox audio directory not found or not a directory, cannot remove files: %s",
+            VOICEVOX_AUDIO_DIR,
+        )
         return
-        
     try:
         for filename in os.listdir(VOICEVOX_AUDIO_DIR):
-            if filename.endswith(".wav"): # Hanya hapus file wav
+            if filename.lower().endswith(".wav"):  # Case-insensitive check
                 file_path_to_remove = os.path.join(VOICEVOX_AUDIO_DIR, filename)
                 try:
                     os.remove(file_path_to_remove)
-                    logger.info(f"Removed audio file: {file_path_to_remove}")
+                    logger.debug("Removed audio file: %s", file_path_to_remove)
                     removed_count += 1
-                except Exception as e_remove:
-                    logger.error(f"Failed to remove file {file_path_to_remove}: {e_remove}")
+                except OSError as e_remove:
+                    logger.error(
+                        "Failed to remove file %s: %s", file_path_to_remove, e_remove
+                    )
         if removed_count > 0:
-            logger.info(f"Successfully removed {removed_count} .wav files from {VOICEVOX_AUDIO_DIR}.")
+            logger.info(
+                "Successfully removed %d .wav files from %s.",
+                removed_count,
+                VOICEVOX_AUDIO_DIR,
+            )
         else:
-            logger.info(f"No .wav files found to remove in {VOICEVOX_AUDIO_DIR}.")
-    except Exception as e_list:
-        logger.error(f"Error listing files in {VOICEVOX_AUDIO_DIR} for removal: {e_list}")
+            logger.info("No .wav files found to remove in %s.", VOICEVOX_AUDIO_DIR)
+    except OSError as e_list:
+        logger.error(
+            "Error listing files in %s for removal: %s",
+            VOICEVOX_AUDIO_DIR,
+            e_list,
+            exc_info=True,
+        )
 
-async def main_test(): # Mengganti nama agar tidak konflik dengan 'main' di aplikasi utama
-    text_to_speak = "うん、元気だよ。君は？"
-    logger.info(f"--- Voicevox API Test ---")
-    logger.info(f"Text to speak: {text_to_speak}")
-    
-    generated_file = await generate_speech(text_to_speak) # Akan menggunakan speaker default dari config
-    
+
+async def main_test():
+    text_to_speak = "こんにちは、これはボイスボックスのテストです。"
+    logger.info("--- Voicevox API Test ---")
+    logger.info("Text to speak: %s", text_to_speak)
+    generated_file = await generate_speech(text_to_speak, speaker_id=DEFAULT_SPEAKER_ID)
     if generated_file:
-        logger.info(f"Test speech generated and played: {generated_file}")
+        logger.info("Test speech generated and likely played: %s", generated_file)
     else:
         logger.error("Test speech generation failed.")
-    
-    # Contoh menghapus output setelah tes (opsional)
-    # remove_all_voicevox_outputs()
+
+    logger.info("Attempting to remove generated audio files...")
+    remove_all_voicevox_outputs()
 
 
 if __name__ == "__main__":
     if not logging.getLogger().hasHandlers():
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s",
+        )
     try:
         asyncio.run(main_test())
-    except Exception as e:
-        logger.error(f"Error running Voicevox API main_test: {e[:50]}", exc_info=True)
+    except RuntimeError as e_rt:  # Misalnya jika Voicevox Client tidak bisa dibuat
+        logger.error(
+            "RuntimeError running Voicevox API main_test: %s", e_rt, exc_info=True
+        )
+    except Exception as e:  # Tangkap error tak terduga lainnya
+        logger.error(
+            "Unexpected error running Voicevox API main_test: %s", e, exc_info=True
+        )

@@ -1,183 +1,346 @@
-# core/default_tts.py
-
-import pyttsx3
-from core import config_manager
+# plugins/default_tts.py
+import pyttsx3  # type: ignore
+from core.config_manager import ConfigManager
 import logging
 from typing import Optional, List, Dict
 import os, time
 
-# --- Setup Logging ---
+try:
+    _cfg = ConfigManager()
+except Exception as e_cfg_init_tts:
+    print(
+        f"CRITICAL ERROR in default_tts.py: Failed to initialize ConfigManager: {e_cfg_init_tts}"
+    )
+    raise RuntimeError(
+        f"DefaultTTS: ConfigManager initialization failed: {e_cfg_init_tts}"
+    ) from e_cfg_init_tts
+
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
-    log_file_path = os.path.join(config_manager.LOG_DIR, f"{os.path.split(__file__)[1].split('.')[0]}.log")
-    file_handler = logging.FileHandler(log_file_path)
-    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.INFO)
-
-
-def _initialize_engine_and_get_voices() -> tuple[Optional[pyttsx3.Engine], List[Dict]]:
-    """Helper untuk inisialisasi engine dan mendapatkan daftar suara. Dijalankan di thread yang sama."""
-    local_engine = None
-    voices_list = []
+    log_file_path = ""
     try:
-        local_engine = pyttsx3.init()
-        if local_engine is None:
-            logger.error("pyttsx3.init() returned None. Engine not available.")
-            return None, []
-        
-        voices = local_engine.getProperty('voices')
-        for i, voice in enumerate(voices):
+        _log_dir_tts = _cfg.get_config_value(
+            "general",
+            "log_dir",
+            os.path.join(
+                _cfg.get_config_value(
+                    "general",
+                    "project_root_dir",
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                ),
+                "logs",
+            ),
+        )
+        if not os.path.exists(_log_dir_tts):
+            os.makedirs(_log_dir_tts, exist_ok=True)
+        log_file_path = os.path.join(
+            _log_dir_tts, f"{os.path.splitext(os.path.basename(__file__))[0]}.log"
+        )
+    except Exception as e_log_path_tts:
+        print(
+            f"ERROR determining log_file_path for default_tts: {e_log_path_tts}. Using fallback."
+        )
+        log_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.log"
+    try:
+        file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s"
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        logger.setLevel(logging.INFO)
+    except OSError as e_fh_tts:
+        print(
+            f"ERROR (OSError) setting up file handler for default_tts: {e_fh_tts}. Using basicConfig."
+        )
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+    except Exception as e_log_tts:
+        print(
+            f"ERROR (Exception) setting up logger for default_tts: {e_log_tts}. Using basicConfig."
+        )
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+
+
+PYTTSX3_DEFAULT_RATE = _cfg.get_int("tts_settings", "pyttsx3_rate", 150)
+PYTTSX3_DEFAULT_VOLUME = _cfg.get_float("tts_settings", "pyttsx3_volume", 1.0)
+
+_voices_cache: List[Dict] = []
+_voices_cache_populated_flag = False
+
+
+def _populate_voices_cache():
+    """Mengisi cache daftar suara. Hanya dijalankan sekali."""
+    global _voices_cache, _voices_cache_populated_flag
+    if _voices_cache_populated_flag:
+        return
+    engine = None
+    try:
+        engine = pyttsx3.init()
+        if engine is None:
+            logger.error("pyttsx3.init() returned None. Cannot populate voices cache.")
+            return
+
+        raw_voices = engine.getProperty("voices")
+        processed_voices = []
+        for i, voice_obj in enumerate(raw_voices):
             voice_detail = {
-                "id": voice.id, "name": voice.name,
-                "languages": voice.languages, "gender": voice.gender, "age": voice.age
+                "id": voice_obj.id,
+                "name": voice_obj.name,
+                "languages": [],
+                "gender": None,
+                "age": None,
             }
             try:
-                voice_detail["languages"] = [lang.decode('utf-8', errors='replace') if isinstance(lang, bytes) else lang for lang in voice.languages]
-                if isinstance(voice.gender, bytes):
-                    voice_detail["gender"] = voice.gender.decode('utf-8', errors='replace')
-            except Exception as e_decode:
-                logger.debug(f"Could not decode all properties for voice {i}: {e_decode}")
-            voices_list.append(voice_detail)
-        logger.debug(f"Engine initialized in helper, found {len(voices_list)} voices.")
-        return local_engine, voices_list
-    except Exception as e:
-        logger.error(f"Failed to initialize pyttsx3 engine or get voices in helper: {e}", exc_info=True)
-        if local_engine:
-            try:
-                local_engine.stop()
-            except: pass
-        return None, []
+                if hasattr(voice_obj, "languages") and voice_obj.languages:
+                    voice_detail["languages"] = [
+                        (
+                            lang.decode("utf-8", errors="replace")
+                            if isinstance(lang, bytes)
+                            else str(lang)
+                        )
+                        for lang in voice_obj.languages
+                    ]
+                if hasattr(voice_obj, "gender"):
+                    voice_detail["gender"] = (
+                        voice_obj.gender.decode("utf-8", errors="replace")
+                        if isinstance(voice_obj.gender, bytes)
+                        else str(voice_obj.gender)
+                    )
+                if hasattr(voice_obj, "age"):
+                    voice_detail["age"] = voice_obj.age
+            except UnicodeDecodeError as e_decode:
+                logger.debug(
+                    "UnicodeDecodeError for voice %d property: %s", i, e_decode
+                )
+            except Exception as e_prop:
+                logger.debug("Error processing property for voice %d: %s", i, e_prop)
+            processed_voices.append(voice_detail)
+        _voices_cache = processed_voices
+        logger.info(
+            "Successfully populated voices cache with %d voices.", len(_voices_cache)
+        )
+    except RuntimeError as re_init:
+        logger.error(
+            "RuntimeError initializing pyttsx3 for voice listing: %s",
+            re_init,
+            exc_info=True,
+        )
+    except Exception as e_gen_init:
+        logger.error(
+            "Failed to initialize pyttsx3 for voice listing: %s",
+            e_gen_init,
+            exc_info=True,
+        )
+    finally:
+        _voices_cache_populated_flag = True
 
 
-def list_available_voices() -> list:
-    """Lists available pyttsx3 voices. Inisialisasi engine sementara untuk ini."""
-    _, voices = _initialize_engine_and_get_voices()
-    return voices
+def list_available_voices() -> list[Dict]:
+    """Mengembalikan daftar suara yang tersedia dari cache."""
+    if not _voices_cache_populated_flag:
+        _populate_voices_cache()
+    return list(_voices_cache)
 
-def _set_voice_on_engine(engine_instance, language_code: str = "id") -> bool:
-    """Mencoba menyetel suara pada instance engine yang diberikan."""
-    if engine_instance is None: return False
-    
-    logger.debug(f"Attempting to set voice for language: {language_code} on provided engine.")
-    try:
-        voices_objects = engine_instance.getProperty('voices') 
-        available_voices_data = []
-        for v_obj in voices_objects:
-            vd = {"id": v_obj.id, "name": v_obj.name, "languages": v_obj.languages, "gender": v_obj.gender, "age": v_obj.age}
-            try:
-                vd["languages"] = [lang.decode('utf-8', errors='replace') if isinstance(lang, bytes) else lang for lang in v_obj.languages]
-                if isinstance(v_obj.gender, bytes): vd["gender"] = v_obj.gender.decode('utf-8', errors='replace')
-            except: pass
-            available_voices_data.append(vd)
-    except Exception as e_get_voices:
-        logger.error(f"Could not get voices from provided engine instance: {e_get_voices}")
+
+def _set_voice_on_engine(engine: pyttsx3.Engine, language_code: str = "id") -> bool:
+    """Mencoba mengatur suara pada instance engine berdasarkan kode bahasa."""
+
+    current_voices_data = list_available_voices()
+    if not current_voices_data:
+        logger.warning(
+            "No voices available from cache to set for language %s.", language_code
+        )
         return False
 
-    config_voice_id_key = f"voice_id_{language_code.lower()}"
-    voice_id_from_config = config_manager.get_config_value("tts_pyttsx3_specifics", config_voice_id_key)
-
+    config_voice_id_key = f"pyttsx3_voice_id_{language_code.lower().replace('-', '_')}"
+    voice_id_from_config = _cfg.get_config_value(
+        "tts_pyttsx3_specifics", config_voice_id_key
+    )
     if voice_id_from_config:
         try:
-            engine_instance.setProperty('voice', voice_id_from_config)
-            logger.info(f"Set pyttsx3 voice using config ID for '{language_code}': {voice_id_from_config}")
+            engine.setProperty("voice", voice_id_from_config)
+            logger.info(
+                "Set pyttsx3 voice using config ID for '%s': %s",
+                language_code,
+                voice_id_from_config,
+            )
             return True
-        except Exception as e_set_id:
-            logger.warning(f"Failed to set voice using config ID '{voice_id_from_config}': {e_set_id}. Will try other methods.")
+        except (RuntimeError, ValueError, TypeError) as e_set_id:
+            logger.warning(
+                "Failed to set voice using config ID '%s': %s. Trying other methods.",
+                voice_id_from_config,
+                e_set_id,
+            )
 
-    for voice_info in available_voices_data:
-        if language_code.lower() in [lang.lower() for lang in voice_info.get("languages", [])]:
+    target_lang_lower = language_code.lower()
+    target_lang_prefix = target_lang_lower.split("-")[0]
+
+    for voice_info in current_voices_data:
+        voice_langs_lower = [
+            str(lang).lower() for lang in voice_info.get("languages", [])
+        ]
+        if (
+            target_lang_lower in voice_langs_lower
+            or target_lang_prefix in voice_langs_lower
+        ):
             try:
-                engine_instance.setProperty('voice', voice_info["id"])
-                logger.info(f"Set pyttsx3 voice by language property match for '{language_code}': {voice_info['name']}")
+                engine.setProperty("voice", voice_info["id"])
+                logger.info(
+                    "Set pyttsx3 voice by language property match for '%s': %s (ID: %s)",
+                    language_code,
+                    voice_info.get("name", "N/A"),
+                    voice_info["id"],
+                )
                 return True
-            except Exception as e_set_lang:
-                 logger.warning(f"Failed to set voice by language property for {voice_info['name']}: {e_set_lang}")
-    
-    for voice_info in available_voices_data:
+            except (
+                RuntimeError,
+                ValueError,
+                TypeError,
+            ) as e_set_lang:
+                logger.warning(
+                    "Failed to set voice by language property for %s: %s",
+                    voice_info.get("name", "N/A"),
+                    e_set_lang,
+                )
+
+    for voice_info in current_voices_data:
         voice_name_lower = voice_info.get("name", "").lower()
-        if language_code.lower() == "id" and "indonesia" in voice_name_lower:
+        found_by_heuristic = False
+        if target_lang_prefix == "id" and "indonesia" in voice_name_lower:
+            found_by_heuristic = True
+        elif target_lang_prefix == "en" and (
+            "zira" in voice_name_lower
+            or "david" in voice_name_lower
+            or "mark" in voice_name_lower
+        ):
+            found_by_heuristic = True
+
+        if found_by_heuristic:
             try:
-                engine_instance.setProperty('voice', voice_info["id"])
-                logger.info(f"Set pyttsx3 voice by name heuristic for '{language_code}': {voice_info['name']}")
+                engine.setProperty("voice", voice_info["id"])
+                logger.info(
+                    "Set pyttsx3 voice by name heuristic for '%s': %s",
+                    language_code,
+                    voice_info["name"],
+                )
                 return True
-            except: pass
-        elif language_code.lower() == "en" and ("zira" in voice_name_lower or "david" in voice_name_lower):
-            try:
-                engine_instance.setProperty('voice', voice_info["id"])
-                logger.info(f"Set pyttsx3 voice by name heuristic for '{language_code}': {voice_info['name']}")
-                return True
-            except: pass
-    logger.warning(f"No suitable pyttsx3 voice explicitly found for language '{language_code}'. pyttsx3 will use its default voice.")
+            except (
+                RuntimeError,
+                ValueError,
+                TypeError,
+            ):
+                pass
+
+    logger.warning(
+        "No suitable pyttsx3 voice found for language '%s'. pyttsx3 will use its default.",
+        language_code,
+    )
     return False
 
 
-def speak_default(text: str, language_code: str = "id", rate: Optional[int] = None, volume: Optional[float] = None):
-    """Uses pyttsx3 to speak the given text. Initializes engine per call for thread safety."""
-    local_engine = None
+def speak_text_sync(
+    text: str,
+    language_code: str = "id",
+    rate: Optional[int] = None,
+    volume: Optional[float] = None,
+):
+    """
+    Menggunakan pyttsx3 untuk mengucapkan teks yang diberikan. Ini adalah fungsi SINKRON/BLOCKING.
+    Menginisialisasi engine baru setiap kali dipanggil untuk stabilitas.
+    """
+    logger.debug("speak_text_sync called for text: '%s...'", text[:30])
+    engine = None
     try:
-        local_engine = pyttsx3.init()
-        if local_engine is None:
-            logger.error("pyttsx3.init() returned None in speak_default. Engine not available.")
+        engine = pyttsx3.init()
+        if engine is None:
+            logger.error("pyttsx3.init() returned None. Cannot speak.")
             return
-        logger.debug("pyttsx3 engine initialized for speak_default call.")
+        logger.debug("pyttsx3 engine initialized for speak_text_sync.")
+    except RuntimeError as re_init:
+        logger.error(
+            "RuntimeError initializing pyttsx3 engine: %s", re_init, exc_info=True
+        )
+        return
     except Exception as e_init:
-        logger.error(f"pyttsx3 engine failed to initialize in speak_default: {e_init}", exc_info=True)
+        logger.error("Failed to initialize pyttsx3 engine: %s", e_init, exc_info=True)
         return
 
-    actual_rate = rate if rate is not None else config_manager.get_int("tts_settings", "pyttsx3_rate", 150)
-    actual_volume = volume if volume is not None else config_manager.get_float("tts_settings", "pyttsx3_volume", 1.0)
+    actual_rate = rate if rate is not None else PYTTSX3_DEFAULT_RATE
+    actual_volume = volume if volume is not None else PYTTSX3_DEFAULT_VOLUME
 
-    logger.info(f"pyttsx3 speaking: '{text[:50]}...' (Lang: {language_code}, Rate: {actual_rate}, Vol: {actual_volume})")
+    logger.info(
+        "pyttsx3 speaking (sync): '%s...' (Lang: %s, Rate: %d, Vol: %.2f)",
+        text[:50],
+        language_code,
+        actual_rate,
+        actual_volume,
+    )
 
     try:
-        _set_voice_on_engine(local_engine, language_code) 
-        
-        local_engine.setProperty('rate', actual_rate)
-        local_engine.setProperty('volume', actual_volume)
-        
-        local_engine.say(text)
-        local_engine.runAndWait()
+        _set_voice_on_engine(engine, language_code)
+        engine.setProperty("rate", actual_rate)
+        engine.setProperty("volume", actual_volume)
+
+        engine.say(text)
+        engine.runAndWait()
         logger.debug("pyttsx3 runAndWait() completed.")
-    except RuntimeError as re:
-        logger.error(f"RuntimeError during pyttsx3 speech: {re}", exc_info=True)
-    except Exception as e:
-        logger.error(f"Error during pyttsx3 speech: {e}", exc_info=True)
-    finally:
-        # Meskipun runAndWait() seharusnya membersihkan, tidak ada salahnya mencoba stop
-        # Ini mungkin tidak selalu diperlukan atau bahkan tidak ada di semua driver pyttsx3
-        if local_engine:
-            try:
-                # local_engine.stop() # Hati-hati, stop() bisa menghentikan loop event yang sedang berjalan
-                # Untuk pyttsx3, runAndWait() adalah cara utama untuk memastikan semua selesai.
-                # Tidak ada metode 'shutdown' atau 'del' yang eksplisit dan aman untuk instance engine.
-                # Biarkan instance engine lokal ini di-garbage collect.
-                pass
-            except Exception as e_stop:
-                logger.debug(f"Exception while trying to stop local_engine (ignoring): {e_stop}")
+
+    except RuntimeError as re_speak:
+        logger.error("RuntimeError during pyttsx3 speech: %s", re_speak, exc_info=True)
+    except Exception as e_speak:
+        logger.error("Error during pyttsx3 speech: %s", e_speak, exc_info=True)
 
 
-if __name__ == '__main__':
-    # ... (Blok __main__ Anda bisa tetap sama, tapi sekarang list_available_voices
-    #      dan speak_default akan menginisialisasi engine mereka sendiri secara internal) ...
-    if not logging.getLogger().hasHandlers() and not logger.hasHandlers():
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+if __name__ == "__main__":
+    if not logging.getLogger().hasHandlers():
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s",
+        )
 
-    logger.info("--- Default TTS (pyttsx3) Test ---")
+    logger.info("--- Default TTS (pyttsx3) Test (Sync Functions) ---")
 
-    logger.info("Available pyttsx3 Voices (engine will be init/stopped for this):")
-    voices_data = list_available_voices() # Ganti nama variabel
-    if voices_data:
-        for i, voice_info_item in enumerate(voices_data):
-            logger.info(f"  Voice {i}: {voice_info_item}")
+    logger.info("Available pyttsx3 Voices (will populate cache if not already):")
+    voices = list_available_voices()
+    if voices:
+        for i, v_info in enumerate(voices):
+            logger.info(
+                "  Voice %d: ID=%s, Name=%s, Langs=%s, Gender=%s",
+                i,
+                v_info.get("id", "N/A"),
+                v_info.get("name", "N/A"),
+                v_info.get("languages", []),
+                v_info.get("gender", "N/A"),
+            )
     else:
-        logger.info("  No voices found or engine not initialized.")
-    logger.info("-" * 20)
-    
-    logger.info("Testing speak_default with config values (Indonesia)...")
-    speak_default("Halo, ini adalah tes suara dari pyttsx3 menggunakan bahasa Indonesia.", language_code="id")
-    
-    time.sleep(0.5) 
+        logger.info(
+            "  No voices found or engine could not be initialized for voice listing."
+        )
 
-    logger.info("\nTesting speak_default with config values (English)...")
-    speak_default("Hello, this is a test voice from pyttsx3 using English.", language_code="en")
+    logger.info("Testing speak_text_sync (Indonesia)...")
+    speak_text_sync(
+        "Halo, ini adalah tes suara dari pyttsx3 menggunakan bahasa Indonesia.",
+        language_code="id",
+    )
+
+    logger.info("Jeda 0.5 detik sebelum tes berikutnya...")
+    time.sleep(0.5)
+
+    logger.info("Testing speak_text_sync (English)...")
+    speak_text_sync(
+        "Hello, this is a test voice from pyttsx3 using English.", language_code="en"
+    )
+
+    logger.info("Testing speak_text_sync (English US)...")
+    speak_text_sync("This is a test for US English.", language_code="en-US")
+
+    logger.info("Testing speak_text_sync (NonExistent Lang 'xx-XX')...")
+    speak_text_sync("This should use default voice.", language_code="xx-XX")
+
+    logger.info("All sync tests finished.")
